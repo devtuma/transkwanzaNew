@@ -1,0 +1,31 @@
+# TransKwanza API - Apache Configuration
+
+# Habilitar CORS
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+
+# Remover .php das URLs (opcional)
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.*)$ $1.php [L]
+
+# Proteção de arquivos sensíveis
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+<Files "database.sql">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Desabilitar listagem de diretórios
+Options -Indexes
+
+# Tempo de execução PHP (ajuste conforme necessário)
+php_value max_execution_time 300
+php_value upload_max_filesize 10M
+php_value post_max_size 10M

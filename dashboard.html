@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - TransKwanza</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <nav class="navbar">
+            <div class="container">
+                <div class="logo">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>TransKwanza</span>
+                </div>
+                <div class="nav-right">
+                    <div class="user-info">
+                        <i class="fas fa-user-circle"></i>
+                        <span id="userName">Usuário</span>
+                    </div>
+                    <button class="btn-logout" id="logoutBtn">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Sair
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+        <div class="container">
+            <!-- Tabs Navigation -->
+            <div class="tabs-nav">
+                <button class="tab-btn active" data-tab="propostas-disponiveis">
+                    <i class="fas fa-search"></i>
+                    <span>Propostas Disponíveis</span>
+                </button>
+                <button class="tab-btn" data-tab="calculadora">
+                    <i class="fas fa-calculator"></i>
+                    <span>Calculadora</span>
+                </button>
+                <button class="tab-btn" data-tab="minhas-propostas">
+                    <i class="fas fa-list-alt"></i>
+                    <span>Minhas Propostas</span>
+                </button>
+            </div>
+
+            <!-- Tab: Propostas Disponíveis -->
+            <div class="tab-content active" id="propostas-disponiveis">
+                <div class="tab-header">
+                    <h2>Propostas Disponíveis</h2>
+                    <p>Encontre propostas de outros usuários e conecte-se</p>
+                </div>
+
+                <!-- Filters -->
+                <div class="filters-section">
+                    <div class="filter-group">
+                        <label>
+                            <i class="fas fa-arrow-up"></i>
+                            Moeda de Origem
+                        </label>
+                        <select id="filterFromCurrency" class="filter-select">
+                            <option value="">Todas</option>
+                            <option value="BRL">🇧🇷 BRL - Real</option>
+                            <option value="USD">🇺🇸 USD - Dólar</option>
+                            <option value="EUR">🇵🇹 EUR - Euro</option>
+                            <option value="AOA">🇦🇴 AOA - Kwanza</option>
+                            <option value="CUP">🇨🇺 CUP - Peso Cubano</option>
+                            <option value="RUB">🇷🇺 RUB - Rublo</option>
+                            <option value="ZAR">🇿🇦 ZAR - Rand</option>
+                            <option value="NAD">🇳🇦 NAD - Dólar Namibiano</option>
+                            <option value="MZN">🇲🇿 MZN - Metical</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-arrow">
+                        <i class="fas fa-arrow-right"></i>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>
+                            <i class="fas fa-arrow-down"></i>
+                            Moeda de Destino
+                        </label>
+                        <select id="filterToCurrency" class="filter-select">
+                            <option value="">Todas</option>
+                            <option value="BRL">🇧🇷 BRL - Real</option>
+                            <option value="USD">🇺🇸 USD - Dólar</option>
+                            <option value="EUR">🇵🇹 EUR - Euro</option>
+                            <option value="AOA">🇦🇴 AOA - Kwanza</option>
+                            <option value="CUP">🇨🇺 CUP - Peso Cubano</option>
+                            <option value="RUB">🇷🇺 RUB - Rublo</option>
+                            <option value="ZAR">🇿🇦 ZAR - Rand</option>
+                            <option value="NAD">🇳🇦 NAD - Dólar Namibiano</option>
+                            <option value="MZN">🇲🇿 MZN - Metical</option>
+                        </select>
+                    </div>
+
+                    <button class="btn-filter" id="applyFilters">
+                        <i class="fas fa-filter"></i>
+                        Filtrar
+                    </button>
+                </div>
+
+                <!-- Proposals List -->
+                <div class="proposals-list" id="proposalsList">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Tab: Calculadora -->
+            <div class="tab-content" id="calculadora">
+                <div class="tab-header">
+                    <h2>Calculadora de Câmbio</h2>
+                    <p>Calcule e crie uma nova proposta</p>
+                </div>
+
+                <div class="calculator-card">
+                    <div class="calculator">
+                        <!-- Origem -->
+                        <div class="currency-group">
+                            <label>Você envia</label>
+                            <div class="input-group">
+                                <select id="calcFromCurrency" class="currency-select">
+                                    <option value="BRL">🇧🇷 BRL - Real</option>
+                                    <option value="USD">🇺🇸 USD - Dólar</option>
+                                    <option value="EUR">🇵🇹 EUR - Euro</option>
+                                    <option value="AOA">🇦🇴 AOA - Kwanza</option>
+                                    <option value="CUP">🇨🇺 CUP - Peso Cubano</option>
+                                    <option value="RUB">🇷🇺 RUB - Rublo</option>
+                                    <option value="ZAR">🇿🇦 ZAR - Rand</option>
+                                    <option value="NAD">🇳🇦 NAD - Dólar Namibiano</option>
+                                    <option value="MZN">🇲🇿 MZN - Metical</option>
+                                </select>
+                                <input type="number" id="calcFromAmount" class="amount-input" value="1000" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <!-- Swap Button -->
+                        <div class="swap-container">
+                            <button class="swap-btn" id="calcSwapBtn">
+                                <i class="fas fa-exchange-alt"></i>
+                            </button>
+                        </div>
+
+                        <!-- Destino -->
+                        <div class="currency-group">
+                            <label>Destinatário recebe</label>
+                            <div class="input-group">
+                                <select id="calcToCurrency" class="currency-select">
+                                    <option value="EUR">🇵🇹 EUR - Euro</option>
+                                    <option value="BRL">🇧🇷 BRL - Real</option>
+                                    <option value="USD">🇺🇸 USD - Dólar</option>
+                                    <option value="AOA">🇦🇴 AOA - Kwanza</option>
+                                    <option value="CUP">🇨🇺 CUP - Peso Cubano</option>
+                                    <option value="RUB">🇷🇺 RUB - Rublo</option>
+                                    <option value="ZAR">🇿🇦 ZAR - Rand</option>
+                                    <option value="NAD">🇳🇦 NAD - Dólar Namibiano</option>
+                                    <option value="MZN">🇲🇿 MZN - Metical</option>
+                                </select>
+                                <input type="number" id="calcToAmount" class="amount-input" value="0" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Info -->
+                        <div class="exchange-info">
+                            <div class="info-row">
+                                <span>Taxa TransKwanza:</span>
+                                <strong>3%</strong>
+                            </div>
+                            <div class="info-row">
+                                <span>Taxa de câmbio:</span>
+                                <strong id="calcExchangeRate">Carregando...</strong>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button class="btn-send" id="createProposalBtn">
+                            Criar Proposta
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Minhas Propostas -->
+            <div class="tab-content" id="minhas-propostas">
+                <div class="tab-header">
+                    <h2>Minhas Propostas</h2>
+                    <p>Gerencie suas propostas ativas</p>
+                </div>
+
+                <div class="my-proposals-list" id="myProposalsList">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Nova Proposta -->
+    <div class="modal" id="newProposalModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nova Proposta</h3>
+                <button class="modal-close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="newProposalForm" class="modal-form">
+                <div class="form-group">
+                    <label>Você está enviando</label>
+                    <div class="readonly-field">
+                        <span id="modalFromCurrency">BRL</span>
+                        <span id="modalFromAmount">1,000.00</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Destinatário receberá</label>
+                    <div class="readonly-field">
+                        <span id="modalToCurrency">EUR</span>
+                        <span id="modalToAmount">180.00</span>
+                    </div>
+                </div>
+
+                <div class="form-divider"></div>
+
+                <h4>Dados do Destinatário</h4>
+
+                <div class="form-group">
+                    <label>Nome completo</label>
+                    <input type="text" id="recipientName" required placeholder="Nome do destinatário">
+                </div>
+
+                <div class="form-group">
+                    <label>E-mail</label>
+                    <input type="email" id="recipientEmail" required placeholder="email@exemplo.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="tel" id="recipientPhone" required placeholder="+351 912 345 678">
+                </div>
+
+                <div class="form-group">
+                    <label>Método de Pagamento</label>
+                    <div class="readonly-field">
+                        <span id="modalPaymentMethod">SEPA / MB Way</span>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelModal">Cancelar</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-check"></i>
+                        Criar Proposta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Aceitar Proposta -->
+    <div class="modal" id="acceptProposalModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Aceitar Proposta</h3>
+                <button class="modal-close" id="closeAcceptModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="acceptProposalForm" class="modal-form">
+                <div class="form-group">
+                    <label>Valor da proposta</label>
+                    <div class="readonly-field">
+                        <span id="acceptFromCurrency">BRL</span>
+                        <span id="acceptFromAmount">1,000.00</span>
+                    </div>
+                </div>
+
+                <div class="form-divider"></div>
+
+                <h4>Dados do Destinatário</h4>
+
+                <div class="form-group">
+                    <label>Nome completo</label>
+                    <input type="text" id="acceptRecipientName" required placeholder="Nome do destinatário">
+                </div>
+
+                <div class="form-group">
+                    <label>E-mail</label>
+                    <input type="email" id="acceptRecipientEmail" required placeholder="email@exemplo.com">
+                </div>
+
+                <div class="form-group">
+                    <label>Telefone</label>
+                    <input type="tel" id="acceptRecipientPhone" required placeholder="+55 11 99999-9999">
+                </div>
+
+                <input type="hidden" id="acceptProposalId">
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAcceptModal">Cancelar</button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-check"></i>
+                        Confirmar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/main.js"></script>
+    <script src="js/currency.js"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

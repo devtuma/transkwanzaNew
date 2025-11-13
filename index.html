@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TransKwanza - Plataforma de Remessas Cruzadas P2P Internacional</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav class="navbar">
+            <div class="container">
+                <div class="logo">
+                    <i class="fas fa-exchange-alt"></i>
+                    <span>TransKwanza</span>
+                </div>
+                <ul class="nav-menu" id="nav-menu">
+                    <li><a href="index.html" class="active">Início</a></li>
+                    <li><a href="paises.html">Países Suportados</a></li>
+                    <li><a href="suporte.html">Suporte</a></li>
+                    <li><a href="login.html" class="btn-secondary">Entrar</a></li>
+                    <li><a href="cadastro.html" class="btn-primary">Cadastrar</a></li>
+                </ul>
+                <div class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>Transferência Segura</h1>
+                <h2>Plataforma de Remessas Cruzadas Segura</h2>
+                <p>Envie dinheiro internacionalmente conectando-se com pessoas que querem enviar na direção oposta. Rápido, seguro e com taxas baixas.</p>
+                <div class="hero-features">
+                    <div class="feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>100% Seguro</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-percent"></i>
+                        <span>Taxa de 3%</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-clock"></i>
+                        <span>Rápido</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Calculator Section -->
+    <section class="calculator-section">
+        <div class="container">
+            <div class="calculator-card">
+                <h2>Calculadora de Câmbio</h2>
+                <p class="subtitle">Calcule quanto você vai enviar e receber</p>
+
+                <div class="calculator">
+                    <!-- Origem -->
+                    <div class="currency-group">
+                        <label>Você envia</label>
+                        <div class="input-group">
+                            <select id="fromCurrency" class="currency-select">
+                                <option value="BRL" data-flag="🇧🇷">🇧🇷 BRL - Real</option>
+                                <option value="USD" data-flag="🇺🇸">🇺🇸 USD - Dólar</option>
+                                <option value="EUR" data-flag="🇵🇹">🇵🇹 EUR - Euro</option>
+                                <option value="AOA" data-flag="🇦🇴">🇦🇴 AOA - Kwanza</option>
+                                <option value="CUP" data-flag="🇨🇺">🇨🇺 CUP - Peso Cubano</option>
+                                <option value="RUB" data-flag="🇷🇺">🇷🇺 RUB - Rublo</option>
+                                <option value="ZAR" data-flag="🇿🇦">🇿🇦 ZAR - Rand</option>
+                                <option value="NAD" data-flag="🇳🇦">🇳🇦 NAD - Dólar Namibiano</option>
+                                <option value="MZN" data-flag="🇲🇿">🇲🇿 MZN - Metical</option>
+                            </select>
+                            <input type="number" id="fromAmount" class="amount-input" value="1000" min="0" step="0.01">
+                        </div>
+                    </div>
+
+                    <!-- Swap Button -->
+                    <div class="swap-container">
+                        <button class="swap-btn" id="swapBtn">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                    </div>
+
+                    <!-- Destino -->
+                    <div class="currency-group">
+                        <label>Destinatário recebe</label>
+                        <div class="input-group">
+                            <select id="toCurrency" class="currency-select">
+                                <option value="EUR" data-flag="🇵🇹">🇵🇹 EUR - Euro</option>
+                                <option value="BRL" data-flag="🇧🇷">🇧🇷 BRL - Real</option>
+                                <option value="USD" data-flag="🇺🇸">🇺🇸 USD - Dólar</option>
+                                <option value="AOA" data-flag="🇦🇴">🇦🇴 AOA - Kwanza</option>
+                                <option value="CUP" data-flag="🇨🇺">🇨🇺 CUP - Peso Cubano</option>
+                                <option value="RUB" data-flag="🇷🇺">🇷🇺 RUB - Rublo</option>
+                                <option value="ZAR" data-flag="🇿🇦">🇿🇦 ZAR - Rand</option>
+                                <option value="NAD" data-flag="🇳🇦">🇳🇦 NAD - Dólar Namibiano</option>
+                                <option value="MZN" data-flag="🇲🇿">🇲🇿 MZN - Metical</option>
+                            </select>
+                            <input type="number" id="toAmount" class="amount-input" value="0" readonly>
+                        </div>
+                    </div>
+
+                    <!-- Info -->
+                    <div class="exchange-info">
+                        <div class="info-row">
+                            <span>Taxa TransKwanza:</span>
+                            <strong>3%</strong>
+                        </div>
+                        <div class="info-row">
+                            <span>Taxa de câmbio:</span>
+                            <strong id="exchangeRate">Carregando...</strong>
+                        </div>
+                        <div class="info-row small">
+                            <span id="lastUpdate">Última atualização: --</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button class="btn-send" id="sendBtn">
+                        Enviar Agora
+                        <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2>Como Funciona</h2>
+            <p class="subtitle">Processo simples e seguro em 4 passos</p>
+
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <i class="fas fa-calculator"></i>
+                    <h3>Calcule</h3>
+                    <p>Use nossa calculadora para ver quanto vai enviar e quanto o destinatário vai receber</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <i class="fas fa-users"></i>
+                    <h3>Conecte</h3>
+                    <p>Encontramos alguém que quer enviar na direção oposta</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <i class="fas fa-money-bill-transfer"></i>
+                    <h3>Deposite</h3>
+                    <p>Cada pessoa deposita em sua conta local TransKwanza</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <i class="fas fa-check-circle"></i>
+                    <h3>Receba</h3>
+                    <p>Após confirmação, liberamos os pagamentos locais</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Countries Section -->
+    <section class="countries-section">
+        <div class="container">
+            <h2>Países Suportados</h2>
+            <p class="subtitle">Operamos em 9 países com sistemas de pagamento locais</p>
+
+            <div class="countries-grid">
+                <div class="country-card">
+                    <span class="flag">🇧🇷</span>
+                    <h3>Brasil</h3>
+                    <p>PIX</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇦🇴</span>
+                    <h3>Angola</h3>
+                    <p>Multicaixa Express</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇵🇹</span>
+                    <h3>Portugal</h3>
+                    <p>SEPA / MB Way</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇺🇸</span>
+                    <h3>EUA</h3>
+                    <p>Zelle / ACH</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇨🇺</span>
+                    <h3>Cuba</h3>
+                    <p>Transfermóvil</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇷🇺</span>
+                    <h3>Rússia</h3>
+                    <p>SBP</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇿🇦</span>
+                    <h3>África do Sul</h3>
+                    <p>EFT</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇳🇦</span>
+                    <h3>Namíbia</h3>
+                    <p>EFT</p>
+                </div>
+                <div class="country-card">
+                    <span class="flag">🇲🇿</span>
+                    <h3>Moçambique</h3>
+                    <p>M-Pesa</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Pronto para começar?</h2>
+            <p>Cadastre-se agora e faça sua primeira remessa com segurança</p>
+            <div class="cta-buttons">
+                <a href="cadastro.html" class="btn-primary btn-large">Criar Conta Grátis</a>
+                <a href="login.html" class="btn-secondary btn-large">Já tenho conta</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>TransKwanza</h3>
+                    <p>Plataforma de remessas cruzadas P2P internacional</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Links Úteis</h4>
+                    <ul>
+                        <li><a href="paises.html">Países Suportados</a></li>
+                        <li><a href="suporte.html">Suporte</a></li>
+                        <li><a href="termos.html">Termos de Uso</a></li>
+                        <li><a href="privacidade.html">Privacidade</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contato</h4>
+                    <p><i class="fab fa-whatsapp"></i> +55 11 93436-3623</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 TransKwanza. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/currency.js"></script>
+</body>
+</html>
