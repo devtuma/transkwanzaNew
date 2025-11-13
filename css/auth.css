@@ -12,7 +12,10 @@
 .auth-card {
     width: 100%;
     max-width: 500px;
-    background: var(--bg-secondary);
+    background: var(--bg-glass);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
     border-radius: var(--radius-xl);
     padding: var(--spacing-xl);
     box-shadow: var(--shadow-lg);
@@ -99,8 +102,9 @@
 .form-group select {
     width: 100%;
     padding: var(--spacing-md);
-    background: var(--bg-tertiary);
-    border: 2px solid var(--bg-hover);
+    background: var(--bg-glass);
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
     border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: 1rem;
@@ -111,7 +115,8 @@
 .form-group select:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.2);
+    background: var(--bg-glass-hover);
 }
 
 .form-group select {
@@ -296,6 +301,18 @@
 .btn-facebook:hover {
     background: #4267B2;
     border-color: #4267B2;
+    color: white;
+}
+
+.btn-instagram:hover {
+    background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    border-color: #bc1888;
+    color: white;
+}
+
+.btn-apple:hover {
+    background: #000000;
+    border-color: #000000;
     color: white;
 }
 

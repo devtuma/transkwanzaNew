@@ -15,10 +15,10 @@
                 <a href="index.html" class="back-link">
                     <i class="fas fa-arrow-left"></i> Voltar
                 </a>
-                <div class="logo-large">
+                <a href="index.html" class="logo-large">
                     <i class="fas fa-exchange-alt"></i>
                     <span>TransKwanza</span>
-                </div>
+                </a>
                 <h1>Entrar na sua conta</h1>
                 <p>Bem-vindo de volta!</p>
             </div>
@@ -78,13 +78,21 @@
             </div>
 
             <div class="social-login">
-                <button class="btn-social btn-google">
+                <button class="btn-social btn-google" onclick="SocialLogin.google()">
                     <i class="fab fa-google"></i>
                     Continuar com Google
                 </button>
-                <button class="btn-social btn-facebook">
+                <button class="btn-social btn-facebook" onclick="SocialLogin.facebook()">
                     <i class="fab fa-facebook"></i>
                     Continuar com Facebook
+                </button>
+                <button class="btn-social btn-instagram" onclick="SocialLogin.instagram()">
+                    <i class="fab fa-instagram"></i>
+                    Continuar com Instagram
+                </button>
+                <button class="btn-social btn-apple" onclick="SocialLogin.apple()">
+                    <i class="fab fa-apple"></i>
+                    Continuar com Apple
                 </button>
             </div>
 
@@ -105,6 +113,7 @@
     </div>
 
     <script src="js/main.js"></script>
+    <script src="js/social-login.js"></script>
     <script src="js/auth.js"></script>
 </body>
 </html>
