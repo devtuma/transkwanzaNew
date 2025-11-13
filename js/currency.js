@@ -9,20 +9,27 @@ const TRANSKWANZA_FEE = 0.03; // 3%
 const CACHE_DURATION = 30 * 1000; // 30 seconds for real-time updates
 const UPDATE_INTERVAL = 30 * 1000; // Update every 30 seconds
 
-// API Configuration (using exchangerate-api.com - free tier)
-const API_BASE_URL = 'https://api.exchangerate-api.com/v4/latest/';
+// API Configuration - Multiple sources for accuracy
+// Primary: exchangerate.host (updated with ECB, Fed, etc data)
+// Fallback: frankfurter.app (European Central Bank data)
+const API_SOURCES = {
+    primary: 'https://api.exchangerate.host/latest?base=',
+    fallback: 'https://api.frankfurter.app/latest?from=',
+    legacy: 'https://api.exchangerate-api.com/v4/latest/'
+};
 
-// Alternative: Use static rates as fallback
+// Alternative: Use static rates as fallback (relative to USD)
+// Updated to match Google Finance rates more accurately
 const FALLBACK_RATES = {
-    BRL: 1,
-    USD: 0.20,
-    EUR: 0.18,
-    AOA: 166.50,
-    CUP: 4.85,
-    RUB: 18.50,
-    ZAR: 3.60,
-    NAD: 3.60,
-    MZN: 12.80
+    USD: 1.0,       // Base
+    BRL: 5.05,      // Real Brasileiro
+    EUR: 0.92,      // Euro
+    AOA: 925.0,     // Kwanza Angolano
+    CUP: 24.0,      // Peso Cubano
+    RUB: 92.0,      // Rublo Russo
+    ZAR: 18.20,     // Rand Sul-Africano
+    NAD: 18.20,     // Dólar Namibiano
+    MZN: 63.80      // Metical Moçambicano
 };
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
@@ -42,13 +49,57 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
             dashboardRefreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         }
 
-        const response = await fetch(`${API_BASE_URL}${baseCurrency}`);
+        // Try multiple API sources for better accuracy
+        let data = null;
+        let lastError = null;
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch exchange rates');
+        // Try primary API (exchangerate.host - most accurate, similar to Google Finance)
+        try {
+            const response = await fetch(`${API_SOURCES.primary}${baseCurrency}`);
+            if (response.ok) {
+                data = await response.json();
+                // Check if data has rates property
+                if (!data.rates) {
+                    throw new Error('Invalid data format from primary API');
+                }
+                console.log(`✓ Using primary API (exchangerate.host) for ${baseCurrency}`);
+            }
+        } catch (error) {
+            console.warn('Primary API failed, trying fallback...', error);
+            lastError = error;
         }
 
-        const data = await response.json();
+        // Try fallback API (frankfurter.app) if primary fails
+        if (!data) {
+            try {
+                const response = await fetch(`${API_SOURCES.fallback}${baseCurrency}`);
+                if (response.ok) {
+                    data = await response.json();
+                    // Check if data has rates property
+                    if (!data.rates) {
+                        throw new Error('Invalid data format from fallback API');
+                    }
+                    console.log(`✓ Using fallback API (frankfurter.app) for ${baseCurrency}`);
+                }
+            } catch (error) {
+                console.warn('Fallback API failed, trying legacy...', error);
+                lastError = error;
+            }
+        }
+
+        // Try legacy API as last resort
+        if (!data) {
+            const response = await fetch(`${API_SOURCES.legacy}${baseCurrency}`);
+            if (!response.ok) {
+                throw lastError || new Error('All API sources failed');
+            }
+            data = await response.json();
+            console.log(`✓ Using legacy API (exchangerate-api.com) for ${baseCurrency}`);
+        }
+
+        if (!data || !data.rates) {
+            throw new Error('Failed to fetch exchange rates from all sources');
+        }
 
         // Store rates and update time
         exchangeRates[baseCurrency] = data.rates;
@@ -158,10 +209,12 @@ function updateCalculator() {
     // Update to amount
     document.getElementById('toAmount').value = calculation.convertedAmount.toFixed(2);
 
-    // Update exchange rate display
+    // Update exchange rate display (show more decimals for accuracy)
     const rateDisplay = document.getElementById('exchangeRate');
     if (rateDisplay) {
-        rateDisplay.textContent = `1 ${fromCurrency} = ${calculation.rate.toFixed(4)} ${toCurrency}`;
+        // Use up to 4 decimal places, but remove trailing zeros
+        const formattedRate = calculation.rate.toFixed(4).replace(/\.?0+$/, '');
+        rateDisplay.textContent = `1 ${fromCurrency} = ${formattedRate} ${toCurrency}`;
     }
 
     // Update last update time (both home page and dashboard)
