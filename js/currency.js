@@ -6,8 +6,8 @@ let lastUpdate = null;
 
 // Constants
 const TRANSKWANZA_FEE = 0.03; // 3%
-const CACHE_DURATION = 5 * 1000; // Cache for only 5 seconds (force fresh data)
-const UPDATE_INTERVAL = 30 * 1000; // Update every 30 seconds
+const CACHE_DURATION = 0; // NO CACHE - always fetch fresh data
+const UPDATE_INTERVAL = 10 * 60 * 1000; // Update every 10 minutes
 
 // API Configuration - Multiple sources for accuracy
 // Primary: exchangerate.host (updated with ECB, Fed, etc data)
@@ -19,17 +19,19 @@ const API_SOURCES = {
 };
 
 // Alternative: Use static rates as fallback (relative to USD)
-// Updated to match Google Finance rates more accurately
+// Updated from Google Finance (13/11/2025)
+// IMPORTANTE: Para calcular EUR→BRL: 1 EUR = 6.16 BRL (Google Finance)
+// 1 USD = 5.80 BRL, então 1 EUR = 6.16/5.80 = 1.062 USD, logo USD→EUR = 0.94
 const FALLBACK_RATES = {
     USD: 1.0,       // Base
-    BRL: 5.05,      // Real Brasileiro
-    EUR: 0.92,      // Euro
-    AOA: 925.0,     // Kwanza Angolano
-    CUP: 24.0,      // Peso Cubano
-    RUB: 92.0,      // Rublo Russo
-    ZAR: 18.20,     // Rand Sul-Africano
-    NAD: 18.20,     // Dólar Namibiano
-    MZN: 63.80      // Metical Moçambicano
+    BRL: 5.80,      // 1 USD = 5.80 BRL (Google Finance)
+    EUR: 0.94,      // 1 USD = 0.94 EUR (portanto 1 EUR = 6.17 BRL) ✓
+    AOA: 920.0,     // 1 USD = 920 AOA Kwanza Angolano
+    CUP: 24.0,      // 1 USD = 24 CUP Peso Cubano
+    RUB: 97.0,      // 1 USD = 97 RUB Rublo Russo
+    ZAR: 18.10,     // 1 USD = 18.10 ZAR Rand Sul-Africano
+    NAD: 18.10,     // 1 USD = 18.10 NAD Dólar Namibiano
+    MZN: 63.90      // 1 USD = 63.90 MZN Metical Moçambicano
 };
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
@@ -233,9 +235,9 @@ async function updateCalculator() {
     const toCurrency = document.getElementById('toCurrency').value;
     const fromAmount = parseFloat(document.getElementById('fromAmount').value) || 0;
 
-    // Fetch rates for both currencies if needed
-    await fetchExchangeRates(fromCurrency);
-    await fetchExchangeRates(toCurrency);
+    // ALWAYS fetch fresh rates for both currencies (no cache)
+    await fetchExchangeRates(fromCurrency, false, true);
+    await fetchExchangeRates(toCurrency, false, true);
 
     const calculation = calculateExchange(fromAmount, fromCurrency, toCurrency);
 
@@ -317,6 +319,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     const swapBtn = document.getElementById('swapBtn');
     const sendBtn = document.getElementById('sendBtn');
 
+    // CLEAR OLD CACHE - force fresh data
+    console.log('🗑️ Clearing old exchange rate cache...');
+    localStorage.removeItem('exchangeRates');
+    exchangeRates = {};
+    lastUpdate = null;
+
     console.log('📊 Initializing calculator - loading ALL exchange rates...');
 
     // Fetch initial rates for ALL currencies (force fresh data on page load)
@@ -393,9 +401,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
-    // Auto-refresh rates every 30 seconds (real-time)
+    // Auto-refresh rates every 10 minutes
     setInterval(async () => {
-        console.log('⏰ Auto-updating exchange rates (every 30s)...');
+        console.log('⏰ Auto-updating exchange rates (every 10 minutes)...');
 
         // Fetch all currencies
         await fetchExchangeRates('USD', false);

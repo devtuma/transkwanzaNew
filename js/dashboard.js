@@ -185,9 +185,9 @@ async function updateDashboardCalculator() {
     const toCurrency = document.getElementById('calcToCurrency').value;
     const fromAmount = parseFloat(document.getElementById('calcFromAmount').value) || 0;
 
-    // Fetch fresh rates for both currencies
-    await CurrencyUtil.fetchExchangeRates(fromCurrency);
-    await CurrencyUtil.fetchExchangeRates(toCurrency);
+    // ALWAYS fetch fresh rates for both currencies (no cache)
+    await CurrencyUtil.fetchExchangeRates(fromCurrency, false, true);
+    await CurrencyUtil.fetchExchangeRates(toCurrency, false, true);
 
     const calculation = CurrencyUtil.calculateExchange(fromAmount, fromCurrency, toCurrency);
 
