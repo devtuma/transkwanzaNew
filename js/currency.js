@@ -6,7 +6,7 @@ let lastUpdate = null;
 
 // Constants
 const TRANSKWANZA_FEE = 0.03; // 3%
-const CACHE_DURATION = 30 * 1000; // 30 seconds for real-time updates
+const CACHE_DURATION = 5 * 1000; // Cache for only 5 seconds (force fresh data)
 const UPDATE_INTERVAL = 30 * 1000; // Update every 30 seconds
 
 // API Configuration - Multiple sources for accuracy
@@ -34,7 +34,36 @@ const FALLBACK_RATES = {
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
 
-async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false) {
+// Check if we need to fetch new rates
+function needsUpdate(baseCurrency) {
+    // If we don't have rates for this currency, fetch
+    if (!exchangeRates[baseCurrency]) {
+        return true;
+    }
+
+    // If lastUpdate is null, fetch
+    if (!lastUpdate) {
+        return true;
+    }
+
+    // If cache is older than CACHE_DURATION, fetch
+    const now = new Date();
+    const timeDiff = now - lastUpdate;
+    if (timeDiff > CACHE_DURATION) {
+        return true;
+    }
+
+    return false;
+}
+
+async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false, forceUpdate = false) {
+    // Check if we need to update (unless forced)
+    if (!forceUpdate && !needsUpdate(baseCurrency)) {
+        console.log(`Using cached rates for ${baseCurrency} (${Math.floor((new Date() - lastUpdate) / 1000)}s old)`);
+        return exchangeRates[baseCurrency];
+    }
+
+    console.log(`🔄 Fetching fresh exchange rates for ${baseCurrency}...`);
     try {
         // Show loading indicator on both buttons
         const refreshBtn = document.getElementById('refreshRatesBtn');
@@ -199,10 +228,14 @@ function calculateExchange(amount, from, to) {
 
 // ==================== UI FUNCTIONS ====================
 
-function updateCalculator() {
+async function updateCalculator() {
     const fromCurrency = document.getElementById('fromCurrency').value;
     const toCurrency = document.getElementById('toCurrency').value;
     const fromAmount = parseFloat(document.getElementById('fromAmount').value) || 0;
+
+    // Fetch rates for both currencies if needed
+    await fetchExchangeRates(fromCurrency);
+    await fetchExchangeRates(toCurrency);
 
     const calculation = calculateExchange(fromAmount, fromCurrency, toCurrency);
 
@@ -218,6 +251,10 @@ function updateCalculator() {
     }
 
     // Update last update time (both home page and dashboard)
+    updateLastUpdateDisplay();
+}
+
+function updateLastUpdateDisplay() {
     const updateDisplays = ['lastUpdate', 'calcLastUpdate'];
     updateDisplays.forEach(displayId => {
         const lastUpdateDisplay = document.getElementById(displayId);
@@ -247,12 +284,25 @@ function swapCurrencies() {
     updateCalculator();
 }
 
-// Manual refresh function
+// Manual refresh function - FORCE new data from API
 async function refreshRates() {
-    await fetchExchangeRates('USD', true);
-    await fetchExchangeRates('BRL', true);
-    await fetchExchangeRates('EUR', true);
-    updateCalculator();
+    console.log('🔄 Manual refresh triggered - forcing API requests...');
+
+    // Force update for all main currencies
+    await fetchExchangeRates('USD', true, true);  // true = show notification, true = force update
+    await fetchExchangeRates('BRL', true, true);
+    await fetchExchangeRates('EUR', true, true);
+    await fetchExchangeRates('AOA', false, true);
+    await fetchExchangeRates('CUP', false, true);
+    await fetchExchangeRates('RUB', false, true);
+    await fetchExchangeRates('ZAR', false, true);
+    await fetchExchangeRates('NAD', false, true);
+    await fetchExchangeRates('MZN', false, true);
+
+    // Update the calculator display
+    await updateCalculator();
+
+    console.log('✅ All exchange rates refreshed from API');
 }
 
 // ==================== INITIALIZE ====================
@@ -267,18 +317,38 @@ document.addEventListener('DOMContentLoaded', async function() {
     const swapBtn = document.getElementById('swapBtn');
     const sendBtn = document.getElementById('sendBtn');
 
-    // Fetch initial rates
-    await fetchExchangeRates('USD');
-    await fetchExchangeRates('BRL');
-    await fetchExchangeRates('EUR');
+    console.log('📊 Initializing calculator - loading ALL exchange rates...');
+
+    // Fetch initial rates for ALL currencies (force fresh data on page load)
+    await fetchExchangeRates('USD', false, true);
+    await fetchExchangeRates('BRL', false, true);
+    await fetchExchangeRates('EUR', false, true);
+    await fetchExchangeRates('AOA', false, true);
+    await fetchExchangeRates('CUP', false, true);
+    await fetchExchangeRates('RUB', false, true);
+    await fetchExchangeRates('ZAR', false, true);
+    await fetchExchangeRates('NAD', false, true);
+    await fetchExchangeRates('MZN', false, true);
+
+    console.log('✅ All exchange rates loaded from API');
 
     // Initial calculation
-    updateCalculator();
+    await updateCalculator();
 
-    // Event listeners
-    fromCurrency.addEventListener('change', updateCalculator);
-    toCurrency.addEventListener('change', updateCalculator);
-    fromAmount.addEventListener('input', updateCalculator);
+    // Event listeners - make them async to fetch rates when currency changes
+    fromCurrency.addEventListener('change', async () => {
+        console.log(`Currency changed to: ${fromCurrency.value}`);
+        await updateCalculator();
+    });
+
+    toCurrency.addEventListener('change', async () => {
+        console.log(`Currency changed to: ${toCurrency.value}`);
+        await updateCalculator();
+    });
+
+    fromAmount.addEventListener('input', async () => {
+        await updateCalculator();
+    });
 
     if (swapBtn) {
         swapBtn.addEventListener('click', swapCurrencies);
@@ -325,11 +395,21 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Auto-refresh rates every 30 seconds (real-time)
     setInterval(async () => {
-        console.log('Auto-updating exchange rates...');
+        console.log('⏰ Auto-updating exchange rates (every 30s)...');
+
+        // Fetch all currencies
         await fetchExchangeRates('USD', false);
         await fetchExchangeRates('BRL', false);
         await fetchExchangeRates('EUR', false);
-        updateCalculator();
+        await fetchExchangeRates('AOA', false);
+        await fetchExchangeRates('CUP', false);
+        await fetchExchangeRates('RUB', false);
+        await fetchExchangeRates('ZAR', false);
+        await fetchExchangeRates('NAD', false);
+        await fetchExchangeRates('MZN', false);
+
+        await updateCalculator();
+        console.log('✅ Auto-update completed');
     }, UPDATE_INTERVAL);
 });
 
@@ -339,5 +419,6 @@ window.CurrencyUtil = {
     getExchangeRate,
     calculateExchange,
     updateCalculator,
-    refreshRates
+    refreshRates,
+    updateLastUpdateDisplay
 };

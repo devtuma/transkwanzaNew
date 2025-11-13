@@ -139,31 +139,55 @@ async function initializeCalculator() {
     const calcFromAmount = document.getElementById('calcFromAmount');
     const calcSwapBtn = document.getElementById('calcSwapBtn');
 
-    // Fetch rates
-    await CurrencyUtil.fetchExchangeRates('USD');
-    await CurrencyUtil.fetchExchangeRates('BRL');
-    await CurrencyUtil.fetchExchangeRates('EUR');
+    console.log('📊 Dashboard calculator - loading ALL exchange rates...');
+
+    // Fetch rates for ALL currencies (force fresh data)
+    await CurrencyUtil.fetchExchangeRates('USD', false, true);
+    await CurrencyUtil.fetchExchangeRates('BRL', false, true);
+    await CurrencyUtil.fetchExchangeRates('EUR', false, true);
+    await CurrencyUtil.fetchExchangeRates('AOA', false, true);
+    await CurrencyUtil.fetchExchangeRates('CUP', false, true);
+    await CurrencyUtil.fetchExchangeRates('RUB', false, true);
+    await CurrencyUtil.fetchExchangeRates('ZAR', false, true);
+    await CurrencyUtil.fetchExchangeRates('NAD', false, true);
+    await CurrencyUtil.fetchExchangeRates('MZN', false, true);
+
+    console.log('✅ Dashboard calculator rates loaded from API');
 
     // Initial calculation
     updateDashboardCalculator();
 
-    // Event listeners
-    calcFromCurrency.addEventListener('change', updateDashboardCalculator);
-    calcToCurrency.addEventListener('change', updateDashboardCalculator);
-    calcFromAmount.addEventListener('input', updateDashboardCalculator);
+    // Event listeners - make them async to fetch rates when currency changes
+    calcFromCurrency.addEventListener('change', async () => {
+        console.log(`Dashboard: Currency changed to ${calcFromCurrency.value}`);
+        await updateDashboardCalculator();
+    });
 
-    calcSwapBtn.addEventListener('click', function() {
+    calcToCurrency.addEventListener('change', async () => {
+        console.log(`Dashboard: Currency changed to ${calcToCurrency.value}`);
+        await updateDashboardCalculator();
+    });
+
+    calcFromAmount.addEventListener('input', async () => {
+        await updateDashboardCalculator();
+    });
+
+    calcSwapBtn.addEventListener('click', async function() {
         const temp = calcFromCurrency.value;
         calcFromCurrency.value = calcToCurrency.value;
         calcToCurrency.value = temp;
-        updateDashboardCalculator();
+        await updateDashboardCalculator();
     });
 }
 
-function updateDashboardCalculator() {
+async function updateDashboardCalculator() {
     const fromCurrency = document.getElementById('calcFromCurrency').value;
     const toCurrency = document.getElementById('calcToCurrency').value;
     const fromAmount = parseFloat(document.getElementById('calcFromAmount').value) || 0;
+
+    // Fetch fresh rates for both currencies
+    await CurrencyUtil.fetchExchangeRates(fromCurrency);
+    await CurrencyUtil.fetchExchangeRates(toCurrency);
 
     const calculation = CurrencyUtil.calculateExchange(fromAmount, fromCurrency, toCurrency);
 
@@ -171,8 +195,13 @@ function updateDashboardCalculator() {
 
     const rateDisplay = document.getElementById('calcExchangeRate');
     if (rateDisplay) {
-        rateDisplay.textContent = `1 ${fromCurrency} = ${calculation.rate.toFixed(4)} ${toCurrency}`;
+        // Use up to 4 decimal places, but remove trailing zeros
+        const formattedRate = calculation.rate.toFixed(4).replace(/\.?0+$/, '');
+        rateDisplay.textContent = `1 ${fromCurrency} = ${formattedRate} ${toCurrency}`;
     }
+
+    // Update last update display (using the exported function from currency.js)
+    CurrencyUtil.updateLastUpdateDisplay();
 }
 
 // ==================== PROPOSALS ====================
