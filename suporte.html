@@ -11,14 +11,21 @@
     <header>
         <nav class="navbar">
             <div class="container">
-                <div class="logo">
+                <a href="index.html" class="logo">
                     <i class="fas fa-exchange-alt"></i>
                     <span>TransKwanza</span>
-                </div>
+                </a>
                 <ul class="nav-menu">
                     <li><a href="index.html">Início</a></li>
                     <li><a href="paises.html">Países Suportados</a></li>
                     <li><a href="suporte.html" class="active">Suporte</a></li>
+                    <li>
+                        <div class="theme-toggle" id="themeToggle">
+                            <i class="fas fa-sun theme-icon-sun"></i>
+                            <div class="theme-toggle-switch"></div>
+                            <i class="fas fa-moon theme-icon-moon"></i>
+                        </div>
+                    </li>
                     <li><a href="login.html" class="btn-secondary">Entrar</a></li>
                 </ul>
             </div>
@@ -127,6 +134,7 @@
         }
     </style>
 
+    <script src="js/theme.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

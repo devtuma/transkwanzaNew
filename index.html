@@ -20,6 +20,13 @@
                     <li><a href="index.html" class="active">Início</a></li>
                     <li><a href="paises.html">Países Suportados</a></li>
                     <li><a href="suporte.html">Suporte</a></li>
+                    <li>
+                        <div class="theme-toggle" id="themeToggle">
+                            <i class="fas fa-sun theme-icon-sun"></i>
+                            <div class="theme-toggle-switch"></div>
+                            <i class="fas fa-moon theme-icon-moon"></i>
+                        </div>
+                    </li>
                     <li><a href="login.html" class="btn-secondary">Entrar</a></li>
                     <li><a href="cadastro.html" class="btn-primary">Cadastrar</a></li>
                 </ul>
@@ -122,6 +129,9 @@
                         </div>
                         <div class="info-row small">
                             <span id="lastUpdate">Última atualização: --</span>
+                            <button class="btn-refresh-rates" id="refreshRatesBtn" title="Atualizar taxas de câmbio">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
                         </div>
                     </div>
 
@@ -266,6 +276,7 @@
         </div>
     </footer>
 
+    <script src="js/theme.js"></script>
     <script src="js/main.js"></script>
     <script src="js/currency.js"></script>
 </body>

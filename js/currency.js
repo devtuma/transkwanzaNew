@@ -6,7 +6,8 @@ let lastUpdate = null;
 
 // Constants
 const TRANSKWANZA_FEE = 0.03; // 3%
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
+const CACHE_DURATION = 30 * 1000; // 30 seconds for real-time updates
+const UPDATE_INTERVAL = 30 * 1000; // Update every 30 seconds
 
 // API Configuration (using exchangerate-api.com - free tier)
 const API_BASE_URL = 'https://api.exchangerate-api.com/v4/latest/';
@@ -26,8 +27,21 @@ const FALLBACK_RATES = {
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
 
-async function fetchExchangeRates(baseCurrency = 'USD') {
+async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false) {
     try {
+        // Show loading indicator on both buttons
+        const refreshBtn = document.getElementById('refreshRatesBtn');
+        const dashboardRefreshBtn = document.getElementById('dashboardRefreshRatesBtn');
+
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        if (dashboardRefreshBtn) {
+            dashboardRefreshBtn.disabled = true;
+            dashboardRefreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
         const response = await fetch(`${API_BASE_URL}${baseCurrency}`);
 
         if (!response.ok) {
@@ -46,9 +60,37 @@ async function fetchExchangeRates(baseCurrency = 'USD') {
             lastUpdate: lastUpdate.toISOString()
         }));
 
+        // Restore refresh buttons
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+        }
+        if (dashboardRefreshBtn) {
+            dashboardRefreshBtn.disabled = false;
+            dashboardRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+        }
+
+        // Show notification if requested
+        if (showNotification && typeof NotificationUtil !== 'undefined') {
+            NotificationUtil.show('Taxas de câmbio atualizadas!', 'success');
+        }
+
         return data.rates;
     } catch (error) {
         console.error('Error fetching exchange rates:', error);
+
+        // Restore refresh buttons
+        const refreshBtn = document.getElementById('refreshRatesBtn');
+        const dashboardRefreshBtn = document.getElementById('dashboardRefreshRatesBtn');
+
+        if (refreshBtn) {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+        }
+        if (dashboardRefreshBtn) {
+            dashboardRefreshBtn.disabled = false;
+            dashboardRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+        }
 
         // Try to use cached rates
         const cached = localStorage.getItem('exchangeRates');
@@ -61,6 +103,9 @@ async function fetchExchangeRates(baseCurrency = 'USD') {
 
         // Use fallback rates
         console.warn('Using fallback rates');
+        if (showNotification && typeof NotificationUtil !== 'undefined') {
+            NotificationUtil.show('Erro ao atualizar. Usando taxas em cache.', 'warning');
+        }
         return FALLBACK_RATES;
     }
 }
@@ -119,21 +164,24 @@ function updateCalculator() {
         rateDisplay.textContent = `1 ${fromCurrency} = ${calculation.rate.toFixed(4)} ${toCurrency}`;
     }
 
-    // Update last update time
-    const lastUpdateDisplay = document.getElementById('lastUpdate');
-    if (lastUpdateDisplay && lastUpdate) {
-        const now = new Date();
-        const diffMinutes = Math.floor((now - lastUpdate) / 60000);
+    // Update last update time (both home page and dashboard)
+    const updateDisplays = ['lastUpdate', 'calcLastUpdate'];
+    updateDisplays.forEach(displayId => {
+        const lastUpdateDisplay = document.getElementById(displayId);
+        if (lastUpdateDisplay && lastUpdate) {
+            const now = new Date();
+            const diffMinutes = Math.floor((now - lastUpdate) / 60000);
 
-        if (diffMinutes < 1) {
-            lastUpdateDisplay.textContent = 'Última atualização: agora';
-        } else if (diffMinutes < 60) {
-            lastUpdateDisplay.textContent = `Última atualização: ${diffMinutes} min atrás`;
-        } else {
-            const hours = Math.floor(diffMinutes / 60);
-            lastUpdateDisplay.textContent = `Última atualização: ${hours}h atrás`;
+            if (diffMinutes < 1) {
+                lastUpdateDisplay.textContent = 'Última atualização: agora';
+            } else if (diffMinutes < 60) {
+                lastUpdateDisplay.textContent = `Última atualização: ${diffMinutes} min atrás`;
+            } else {
+                const hours = Math.floor(diffMinutes / 60);
+                lastUpdateDisplay.textContent = `Última atualização: ${hours}h atrás`;
+            }
         }
-    }
+    });
 }
 
 function swapCurrencies() {
@@ -146,6 +194,14 @@ function swapCurrencies() {
     toCurrency.value = temp;
 
     // Update calculator
+    updateCalculator();
+}
+
+// Manual refresh function
+async function refreshRates() {
+    await fetchExchangeRates('USD', true);
+    await fetchExchangeRates('BRL', true);
+    await fetchExchangeRates('EUR', true);
     updateCalculator();
 }
 
@@ -178,6 +234,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         swapBtn.addEventListener('click', swapCurrencies);
     }
 
+    // Refresh buttons (home page and dashboard)
+    const refreshBtn = document.getElementById('refreshRatesBtn');
+    const dashboardRefreshBtn = document.getElementById('dashboardRefreshRatesBtn');
+
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshRates);
+    }
+    if (dashboardRefreshBtn) {
+        dashboardRefreshBtn.addEventListener('click', refreshRates);
+    }
+
     if (sendBtn) {
         sendBtn.addEventListener('click', function() {
             // Check if user is logged in
@@ -206,13 +273,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
-    // Auto-refresh rates every hour
+    // Auto-refresh rates every 30 seconds (real-time)
     setInterval(async () => {
-        await fetchExchangeRates('USD');
-        await fetchExchangeRates('BRL');
-        await fetchExchangeRates('EUR');
+        console.log('Auto-updating exchange rates...');
+        await fetchExchangeRates('USD', false);
+        await fetchExchangeRates('BRL', false);
+        await fetchExchangeRates('EUR', false);
         updateCalculator();
-    }, CACHE_DURATION);
+    }, UPDATE_INTERVAL);
 });
 
 // ==================== EXPORT FOR OTHER MODULES ====================
@@ -220,5 +288,6 @@ window.CurrencyUtil = {
     fetchExchangeRates,
     getExchangeRate,
     calculateExchange,
-    updateCalculator
+    updateCalculator,
+    refreshRates
 };

@@ -18,13 +18,18 @@
                     <span>TransKwanza</span>
                 </a>
                 <div class="nav-right">
+                    <div class="theme-toggle" id="themeToggle">
+                        <i class="fas fa-sun theme-icon-sun"></i>
+                        <div class="theme-toggle-switch"></div>
+                        <i class="fas fa-moon theme-icon-moon"></i>
+                    </div>
                     <div class="user-info">
                         <i class="fas fa-user-circle"></i>
                         <span id="userName">Usuário</span>
                     </div>
                     <button class="btn-logout" id="logoutBtn">
                         <i class="fas fa-sign-out-alt"></i>
-                        Sair
+                        <span>Sair</span>
                     </button>
                 </div>
             </div>
@@ -177,6 +182,12 @@
                                 <span>Taxa de câmbio:</span>
                                 <strong id="calcExchangeRate">Carregando...</strong>
                             </div>
+                            <div class="info-row small">
+                                <span id="calcLastUpdate">Última atualização: --</span>
+                                <button class="btn-refresh-rates" id="dashboardRefreshRatesBtn" title="Atualizar taxas de câmbio">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Action Button -->
@@ -317,6 +328,7 @@
         </div>
     </div>
 
+    <script src="js/theme.js"></script>
     <script src="js/main.js"></script>
     <script src="js/currency.js"></script>
     <script src="js/dashboard.js"></script>

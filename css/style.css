@@ -58,6 +58,38 @@
     --glass-blur: blur(10px);
 }
 
+/* Light Theme */
+[data-theme="light"] {
+    /* Light Theme Colors */
+    --bg-primary: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    --bg-secondary: rgba(255, 255, 255, 0.8);
+    --bg-tertiary: rgba(245, 245, 245, 0.9);
+    --bg-hover: rgba(224, 224, 224, 0.9);
+    --bg-glass: rgba(255, 255, 255, 0.6);
+    --bg-glass-hover: rgba(255, 255, 255, 0.8);
+
+    /* Text Colors */
+    --text-primary: #1a1a1a;
+    --text-secondary: #424242;
+    --text-muted: #757575;
+
+    /* Shadows for light theme */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.15);
+    --shadow-glow: 0 0 20px rgba(0, 217, 255, 0.4);
+
+    /* Glass Effect for light */
+    --glass-border: 1px solid rgba(0, 0, 0, 0.1);
+    --gradient-bg: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+}
+
+[data-theme="light"] body::before {
+    background:
+        radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(0, 153, 255, 0.15) 0%, transparent 50%);
+}
+
 /* ==================== BASE STYLES ==================== */
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -188,6 +220,63 @@ header {
     background: var(--text-primary);
     border-radius: 3px;
     transition: var(--transition);
+}
+
+/* Theme Toggle */
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs);
+    background: var(--bg-glass);
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.theme-toggle:hover {
+    background: var(--bg-glass-hover);
+}
+
+.theme-toggle-switch {
+    position: relative;
+    width: 50px;
+    height: 26px;
+    background: var(--bg-tertiary);
+    border-radius: 13px;
+    transition: var(--transition);
+}
+
+.theme-toggle-switch::before {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--gradient-primary);
+    top: 2px;
+    left: 2px;
+    transition: var(--transition);
+    box-shadow: var(--shadow-sm);
+}
+
+[data-theme="light"] .theme-toggle-switch::before {
+    transform: translateX(24px);
+}
+
+.theme-toggle i {
+    font-size: 1.2rem;
+    transition: var(--transition);
+}
+
+.theme-icon-sun {
+    color: #ffa726;
+}
+
+.theme-icon-moon {
+    color: #00d9ff;
 }
 
 /* ==================== BUTTONS ==================== */
@@ -455,7 +544,49 @@ header {
 .info-row.small {
     font-size: 0.85rem;
     color: var(--text-muted);
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.btn-refresh-rates {
+    display: flex;
+    align-items: center;
     justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: var(--bg-glass);
+    backdrop-filter: var(--glass-blur);
+    border: var(--glass-border);
+    border-radius: var(--radius-md);
+    color: var(--accent-primary);
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 1rem;
+}
+
+.btn-refresh-rates:hover:not(:disabled) {
+    background: var(--bg-glass-hover);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+.btn-refresh-rates:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.btn-refresh-rates:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-refresh-rates i {
+    transition: transform 0.6s ease;
+}
+
+.btn-refresh-rates:hover:not(:disabled) i {
+    transform: rotate(180deg);
 }
 
 /* ==================== HOW IT WORKS ==================== */
