@@ -222,17 +222,14 @@ function updateCalculator() {
     updateDisplays.forEach(displayId => {
         const lastUpdateDisplay = document.getElementById(displayId);
         if (lastUpdateDisplay && lastUpdate) {
-            const now = new Date();
-            const diffMinutes = Math.floor((now - lastUpdate) / 60000);
+            // Format: "DD/MM/YYYY HH:MM"
+            const day = String(lastUpdate.getDate()).padStart(2, '0');
+            const month = String(lastUpdate.getMonth() + 1).padStart(2, '0');
+            const year = lastUpdate.getFullYear();
+            const hours = String(lastUpdate.getHours()).padStart(2, '0');
+            const minutes = String(lastUpdate.getMinutes()).padStart(2, '0');
 
-            if (diffMinutes < 1) {
-                lastUpdateDisplay.textContent = 'Última atualização: agora';
-            } else if (diffMinutes < 60) {
-                lastUpdateDisplay.textContent = `Última atualização: ${diffMinutes} min atrás`;
-            } else {
-                const hours = Math.floor(diffMinutes / 60);
-                lastUpdateDisplay.textContent = `Última atualização: ${hours}h atrás`;
-            }
+            lastUpdateDisplay.textContent = `Última atualização: ${day}/${month}/${year} ${hours}:${minutes}`;
         }
     });
 }

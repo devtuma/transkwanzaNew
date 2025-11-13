@@ -558,26 +558,53 @@
 /* ==================== RESPONSIVE ==================== */
 
 @media (max-width: 768px) {
+    .dashboard-header .navbar .container {
+        flex-wrap: wrap;
+        gap: var(--spacing-sm);
+    }
+
     .nav-right {
         gap: var(--spacing-xs);
+        flex-wrap: wrap;
+    }
+
+    .theme-toggle {
+        order: 1;
+    }
+
+    .user-info {
+        order: 2;
+        padding: var(--spacing-xs);
     }
 
     .user-info span {
         display: none;
     }
 
+    .btn-logout {
+        order: 3;
+        padding: var(--spacing-xs);
+    }
+
     .btn-logout span {
         display: none;
+    }
+
+    .dashboard-main {
+        padding: var(--spacing-md) 0;
     }
 
     .tabs-nav {
         flex-wrap: nowrap;
         overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
     }
 
     .tab-btn {
         flex: 0 0 auto;
-        min-width: 150px;
+        min-width: 120px;
+        padding: var(--spacing-sm);
     }
 
     .tab-btn span {
@@ -588,22 +615,56 @@
         font-size: 1.5rem;
     }
 
+    .tab-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .tab-header p {
+        font-size: 0.9rem;
+    }
+
     .filters-section {
         flex-direction: column;
+        gap: var(--spacing-md);
+    }
+
+    .filter-group {
+        width: 100%;
     }
 
     .filter-arrow {
         transform: rotate(90deg);
-        padding: 0;
+        padding: var(--spacing-xs) 0;
     }
 
     .proposals-list,
     .my-proposals-list {
         grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .calculator-card {
+        padding: var(--spacing-md);
+    }
+
+    .currency-group label {
+        font-size: 0.9rem;
+    }
+
+    .input-group {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    .currency-select,
+    .amount-input {
+        font-size: 1rem;
     }
 
     .modal-content {
         max-height: 95vh;
+        margin: var(--spacing-sm);
+        width: calc(100% - var(--spacing-md) * 2);
     }
 }
 
