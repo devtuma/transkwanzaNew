@@ -86,36 +86,7 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
         let data = null;
         let lastError = null;
 
-        // TRY GEMINI API FIRST - ONLY if explicitly requested (manual refresh)
-        const shouldUseGemini = useGemini && ['USD', 'BRL', 'EUR'].includes(baseCurrency);
-
-        if (shouldUseGemini) {
-            try {
-                console.log(`🌟 Trying Gemini API with Google Search grounding...`);
-
-                // Add timeout to prevent hanging
-                const geminiPromise = fetchAllRatesFromGemini(baseCurrency);
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Gemini timeout')), 10000)
-                );
-
-                const geminiRates = await Promise.race([geminiPromise, timeoutPromise]);
-
-                if (geminiRates && Object.keys(geminiRates).length > 1) {
-                    // Gemini only returns partial rates, merge with traditional API
-                    console.log(`✨ Got ${Object.keys(geminiRates).length} rates from Gemini, fetching rest from traditional APIs...`);
-
-                    // Still need full rate set, so continue to traditional APIs
-                    // but we'll use Gemini rates as reference
-                }
-            } catch (error) {
-                console.warn('⚠️ Gemini API failed or timed out, using traditional APIs...', error.message);
-                lastError = error;
-            }
-        }
-
-        // ALWAYS use traditional APIs for fast, reliable data
-        if (!data) {
+        // Use traditional APIs for fast, reliable data
         try {
             const response = await fetch(`${API_SOURCES.primary}${baseCurrency}`);
             if (response.ok) {
@@ -317,16 +288,14 @@ function swapCurrencies() {
     updateCalculator();
 }
 
-// Manual refresh function - FORCE new data from API with GEMINI
+// Manual refresh function - FORCE new data from API
 async function refreshRates() {
-    console.log('🔄 Manual refresh triggered - forcing API requests with Gemini...');
+    console.log('🔄 Manual refresh triggered - forcing API requests...');
 
-    // Force update for main currencies WITH GEMINI (Google Finance data)
-    await fetchExchangeRates('USD', true, true, true);  // show notification, force, USE GEMINI
-    await fetchExchangeRates('BRL', false, true, true);
-    await fetchExchangeRates('EUR', false, true, true);
-
-    // Other currencies without Gemini (faster)
+    // Force update for all currencies from traditional APIs
+    await fetchExchangeRates('USD', true, true, false);  // show notification, force update
+    await fetchExchangeRates('BRL', false, true, false);
+    await fetchExchangeRates('EUR', false, true, false);
     await fetchExchangeRates('AOA', false, true, false);
     await fetchExchangeRates('CUP', false, true, false);
     await fetchExchangeRates('RUB', false, true, false);
@@ -337,7 +306,7 @@ async function refreshRates() {
     // Update the calculator display
     await updateCalculator();
 
-    console.log('✅ All exchange rates refreshed from API (with Gemini for main currencies)');
+    console.log('✅ All exchange rates refreshed from API');
 }
 
 // ==================== INITIALIZE ====================
