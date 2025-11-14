@@ -141,7 +141,7 @@ function needsUpdate(baseCurrency) {
     return false;
 }
 
-async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false, forceUpdate = false) {
+async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false, forceUpdate = false, useGemini = false) {
     // Check if we need to update (unless forced)
     if (!forceUpdate && !needsUpdate(baseCurrency)) {
         console.log(`Using cached rates for ${baseCurrency} (${Math.floor((new Date() - lastUpdate) / 1000)}s old)`);
@@ -167,8 +167,8 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
         let data = null;
         let lastError = null;
 
-        // TRY GEMINI API FIRST - but with timeout and only for main currencies
-        const shouldUseGemini = ['USD', 'BRL', 'EUR'].includes(baseCurrency);
+        // TRY GEMINI API FIRST - ONLY if explicitly requested (manual refresh)
+        const shouldUseGemini = useGemini && ['USD', 'BRL', 'EUR'].includes(baseCurrency);
 
         if (shouldUseGemini) {
             try {
@@ -193,11 +193,9 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
                 console.warn('⚠️ Gemini API failed or timed out, using traditional APIs...', error.message);
                 lastError = error;
             }
-        } else {
-            console.log(`ℹ️ Skipping Gemini for ${baseCurrency}, using traditional APIs...`);
         }
 
-        // ALWAYS try primary API (exchangerate.host) for complete rate set
+        // ALWAYS use traditional APIs for fast, reliable data
         if (!data) {
         try {
             const response = await fetch(`${API_SOURCES.primary}${baseCurrency}`);
@@ -349,9 +347,9 @@ async function updateCalculator() {
     const toCurrency = document.getElementById('toCurrency').value;
     const fromAmount = parseFloat(document.getElementById('fromAmount').value) || 0;
 
-    // ALWAYS fetch fresh rates for both currencies (no cache)
-    await fetchExchangeRates(fromCurrency, false, true);
-    await fetchExchangeRates(toCurrency, false, true);
+    // Fetch rates if needed (uses cache if available - fast!)
+    await fetchExchangeRates(fromCurrency, false, false, false); // No force, no Gemini = fast
+    await fetchExchangeRates(toCurrency, false, false, false);
 
     const calculation = calculateExchange(fromAmount, fromCurrency, toCurrency);
 
@@ -400,25 +398,27 @@ function swapCurrencies() {
     updateCalculator();
 }
 
-// Manual refresh function - FORCE new data from API
+// Manual refresh function - FORCE new data from API with GEMINI
 async function refreshRates() {
-    console.log('🔄 Manual refresh triggered - forcing API requests...');
+    console.log('🔄 Manual refresh triggered - forcing API requests with Gemini...');
 
-    // Force update for all main currencies
-    await fetchExchangeRates('USD', true, true);  // true = show notification, true = force update
-    await fetchExchangeRates('BRL', true, true);
-    await fetchExchangeRates('EUR', true, true);
-    await fetchExchangeRates('AOA', false, true);
-    await fetchExchangeRates('CUP', false, true);
-    await fetchExchangeRates('RUB', false, true);
-    await fetchExchangeRates('ZAR', false, true);
-    await fetchExchangeRates('NAD', false, true);
-    await fetchExchangeRates('MZN', false, true);
+    // Force update for main currencies WITH GEMINI (Google Finance data)
+    await fetchExchangeRates('USD', true, true, true);  // show notification, force, USE GEMINI
+    await fetchExchangeRates('BRL', false, true, true);
+    await fetchExchangeRates('EUR', false, true, true);
+
+    // Other currencies without Gemini (faster)
+    await fetchExchangeRates('AOA', false, true, false);
+    await fetchExchangeRates('CUP', false, true, false);
+    await fetchExchangeRates('RUB', false, true, false);
+    await fetchExchangeRates('ZAR', false, true, false);
+    await fetchExchangeRates('NAD', false, true, false);
+    await fetchExchangeRates('MZN', false, true, false);
 
     // Update the calculator display
     await updateCalculator();
 
-    console.log('✅ All exchange rates refreshed from API');
+    console.log('✅ All exchange rates refreshed from API (with Gemini for main currencies)');
 }
 
 // ==================== INITIALIZE ====================
@@ -439,20 +439,14 @@ document.addEventListener('DOMContentLoaded', async function() {
     exchangeRates = {};
     lastUpdate = null;
 
-    console.log('📊 Initializing calculator - loading ALL exchange rates...');
+    console.log('📊 Initializing calculator - loading exchange rates (FAST mode)...');
 
-    // Fetch initial rates for ALL currencies (force fresh data on page load)
-    await fetchExchangeRates('USD', false, true);
-    await fetchExchangeRates('BRL', false, true);
-    await fetchExchangeRates('EUR', false, true);
-    await fetchExchangeRates('AOA', false, true);
-    await fetchExchangeRates('CUP', false, true);
-    await fetchExchangeRates('RUB', false, true);
-    await fetchExchangeRates('ZAR', false, true);
-    await fetchExchangeRates('NAD', false, true);
-    await fetchExchangeRates('MZN', false, true);
+    // Fetch initial rates for main currencies only (no force, no Gemini = FAST!)
+    await fetchExchangeRates('USD', false, true, false); // Force once on load, but NO Gemini
+    await fetchExchangeRates('BRL', false, true, false);
+    await fetchExchangeRates('EUR', false, true, false);
 
-    console.log('✅ All exchange rates loaded from API');
+    console.log('✅ Main exchange rates loaded (others will load on demand)');
 
     // Initial calculation
     await updateCalculator();

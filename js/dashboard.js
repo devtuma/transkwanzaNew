@@ -139,20 +139,14 @@ async function initializeCalculator() {
     const calcFromAmount = document.getElementById('calcFromAmount');
     const calcSwapBtn = document.getElementById('calcSwapBtn');
 
-    console.log('📊 Dashboard calculator - loading ALL exchange rates...');
+    console.log('📊 Dashboard calculator - loading exchange rates (FAST mode)...');
 
-    // Fetch rates for ALL currencies (force fresh data)
-    await CurrencyUtil.fetchExchangeRates('USD', false, true);
-    await CurrencyUtil.fetchExchangeRates('BRL', false, true);
-    await CurrencyUtil.fetchExchangeRates('EUR', false, true);
-    await CurrencyUtil.fetchExchangeRates('AOA', false, true);
-    await CurrencyUtil.fetchExchangeRates('CUP', false, true);
-    await CurrencyUtil.fetchExchangeRates('RUB', false, true);
-    await CurrencyUtil.fetchExchangeRates('ZAR', false, true);
-    await CurrencyUtil.fetchExchangeRates('NAD', false, true);
-    await CurrencyUtil.fetchExchangeRates('MZN', false, true);
+    // Fetch rates for main currencies only (no Gemini = FAST!)
+    await CurrencyUtil.fetchExchangeRates('USD', false, true, false);
+    await CurrencyUtil.fetchExchangeRates('BRL', false, true, false);
+    await CurrencyUtil.fetchExchangeRates('EUR', false, true, false);
 
-    console.log('✅ Dashboard calculator rates loaded from API');
+    console.log('✅ Dashboard rates loaded (others will load on demand)');
 
     // Initial calculation
     updateDashboardCalculator();
@@ -185,9 +179,9 @@ async function updateDashboardCalculator() {
     const toCurrency = document.getElementById('calcToCurrency').value;
     const fromAmount = parseFloat(document.getElementById('calcFromAmount').value) || 0;
 
-    // ALWAYS fetch fresh rates for both currencies (no cache)
-    await CurrencyUtil.fetchExchangeRates(fromCurrency, false, true);
-    await CurrencyUtil.fetchExchangeRates(toCurrency, false, true);
+    // Fetch rates if needed (uses cache if available - fast!)
+    await CurrencyUtil.fetchExchangeRates(fromCurrency, false, false, false);
+    await CurrencyUtil.fetchExchangeRates(toCurrency, false, false, false);
 
     const calculation = CurrencyUtil.calculateExchange(fromAmount, fromCurrency, toCurrency);
 
