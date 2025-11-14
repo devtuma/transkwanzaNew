@@ -6,18 +6,15 @@ let lastUpdate = null;
 
 // Constants
 const TRANSKWANZA_FEE = 0.03; // 3%
-const CACHE_DURATION = 0; // NO CACHE - always fetch fresh data
+const CACHE_DURATION = 60 * 1000; // Cache for 1 minute
 const UPDATE_INTERVAL = 10 * 60 * 1000; // Update every 10 minutes
 
-// Gemini API Configuration for Google Finance data
-const GEMINI_API_KEY = 'AIzaSyDgvL2UZRzPZ7o3tDuzpGnojd_jK1PxR8Q';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+// GEMINI API DESABILITADA (bloqueio CORS do navegador)
+// Para usar Gemini, seria necessário fazer as requisições do backend, não do frontend
+const GEMINI_ENABLED = false; // Desabilitado por enquanto
 
 // API Configuration - Multiple sources for accuracy
-// Primary: Gemini with Google Search (gets data from Google Finance!)
-// Fallback: exchangerate.host, frankfurter.app, exchangerate-api.com
 const API_SOURCES = {
-    gemini: GEMINI_API_URL,
     primary: 'https://api.exchangerate.host/latest?base=',
     fallback: 'https://api.frankfurter.app/latest?from=',
     legacy: 'https://api.exchangerate-api.com/v4/latest/'
@@ -38,84 +35,6 @@ const FALLBACK_RATES = {
     NAD: 18.10,     // 1 USD = 18.10 NAD Dólar Namibiano
     MZN: 63.90      // 1 USD = 63.90 MZN Metical Moçambicano
 };
-
-// ==================== GEMINI API FUNCTION ====================
-
-async function fetchRateFromGemini(fromCurrency, toCurrency) {
-    try {
-        console.log(`🔮 Asking Gemini AI for ${fromCurrency} to ${toCurrency} rate (via Google Search)...`);
-
-        const prompt = `What is the current exchange rate for 1 ${fromCurrency} to ${toCurrency}? Provide ONLY the numerical value as a decimal number, nothing else. For example: 6.17`;
-
-        const response = await fetch(GEMINI_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'x-goog-api-key': GEMINI_API_KEY
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                tools: [{
-                    googleSearch: {}  // This enables Google Search grounding!
-                }]
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Gemini API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        // Extract the rate from Gemini's response
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            const text = data.candidates[0].content.parts[0].text;
-            // Extract number from text (handles formats like "6.17" or "The rate is 6.17")
-            const match = text.match(/\d+\.?\d*/);
-            if (match) {
-                const rate = parseFloat(match[0]);
-                console.log(`✨ Gemini found rate: 1 ${fromCurrency} = ${rate} ${toCurrency} (from Google Finance)`);
-                return rate;
-            }
-        }
-
-        throw new Error('Could not parse rate from Gemini response');
-    } catch (error) {
-        console.warn(`Gemini API failed: ${error.message}`);
-        return null;
-    }
-}
-
-async function fetchAllRatesFromGemini(baseCurrency) {
-    // OPTIMIZATION: Only fetch 2-3 key rates from Gemini to avoid rate limits
-    // Let traditional APIs handle the rest
-    const keyCurrencies = baseCurrency === 'USD'
-        ? ['BRL', 'EUR']
-        : baseCurrency === 'BRL'
-        ? ['USD', 'EUR']
-        : ['USD', 'BRL'];
-
-    const rates = {};
-    rates[baseCurrency] = 1.0;
-
-    console.log(`Fetching ${keyCurrencies.length} key rates from Gemini for ${baseCurrency}...`);
-
-    for (const currency of keyCurrencies) {
-        const rate = await fetchRateFromGemini(baseCurrency, currency);
-        if (rate && rate > 0) {
-            rates[currency] = rate;
-        } else {
-            console.warn(`Failed to get ${baseCurrency}→${currency} from Gemini`);
-            return null; // If Gemini fails, use fallback APIs
-        }
-    }
-
-    return rates;
-}
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
 
