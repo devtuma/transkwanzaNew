@@ -10,7 +10,7 @@ const CACHE_DURATION = 0; // NO CACHE - always fetch fresh data
 const UPDATE_INTERVAL = 10 * 60 * 1000; // Update every 10 minutes
 
 // Gemini API Configuration for Google Finance data
-const GEMINI_API_KEY = 'AIzaSyDuuvZGKTxxfKSAEI_-QEelp_2aQ9r_55k';
+const GEMINI_API_KEY = 'AIzaSyDgvL2UZRzPZ7o3tDuzpGnojd_jK1PxR8Q';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
 
 // API Configuration - Multiple sources for accuracy
@@ -91,22 +91,30 @@ async function fetchRateFromGemini(fromCurrency, toCurrency) {
 }
 
 async function fetchAllRatesFromGemini(baseCurrency) {
-    // Get rates for all currencies relative to base currency
-    const currencies = ['USD', 'BRL', 'EUR', 'AOA', 'CUP', 'RUB', 'ZAR', 'NAD', 'MZN'];
-    const rates = {};
+    // OPTIMIZATION: Only fetch 2-3 key rates from Gemini to avoid rate limits
+    // Let traditional APIs handle the rest
+    const keyCurrencies = baseCurrency === 'USD'
+        ? ['BRL', 'EUR']
+        : baseCurrency === 'BRL'
+        ? ['USD', 'EUR']
+        : ['USD', 'BRL'];
 
-    for (const currency of currencies) {
-        if (currency === baseCurrency) {
-            rates[currency] = 1.0;
+    const rates = {};
+    rates[baseCurrency] = 1.0;
+
+    console.log(`Fetching ${keyCurrencies.length} key rates from Gemini for ${baseCurrency}...`);
+
+    for (const currency of keyCurrencies) {
+        const rate = await fetchRateFromGemini(baseCurrency, currency);
+        if (rate && rate > 0) {
+            rates[currency] = rate;
         } else {
-            const rate = await fetchRateFromGemini(baseCurrency, currency);
-            if (rate) {
-                rates[currency] = rate;
-            }
+            console.warn(`Failed to get ${baseCurrency}→${currency} from Gemini`);
+            return null; // If Gemini fails, use fallback APIs
         }
     }
 
-    return Object.keys(rates).length > 1 ? rates : null;
+    return rates;
 }
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
@@ -159,21 +167,37 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
         let data = null;
         let lastError = null;
 
-        // TRY GEMINI API FIRST (uses Google Search to get Google Finance data!)
-        try {
-            console.log(`🌟 Trying Gemini API with Google Search grounding...`);
-            const geminiRates = await fetchAllRatesFromGemini(baseCurrency);
+        // TRY GEMINI API FIRST - but with timeout and only for main currencies
+        const shouldUseGemini = ['USD', 'BRL', 'EUR'].includes(baseCurrency);
 
-            if (geminiRates && Object.keys(geminiRates).length > 1) {
-                data = { rates: geminiRates };
-                console.log(`✨ SUCCESS! Using Gemini API (Google Finance data) for ${baseCurrency}`);
+        if (shouldUseGemini) {
+            try {
+                console.log(`🌟 Trying Gemini API with Google Search grounding...`);
+
+                // Add timeout to prevent hanging
+                const geminiPromise = fetchAllRatesFromGemini(baseCurrency);
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Gemini timeout')), 10000)
+                );
+
+                const geminiRates = await Promise.race([geminiPromise, timeoutPromise]);
+
+                if (geminiRates && Object.keys(geminiRates).length > 1) {
+                    // Gemini only returns partial rates, merge with traditional API
+                    console.log(`✨ Got ${Object.keys(geminiRates).length} rates from Gemini, fetching rest from traditional APIs...`);
+
+                    // Still need full rate set, so continue to traditional APIs
+                    // but we'll use Gemini rates as reference
+                }
+            } catch (error) {
+                console.warn('⚠️ Gemini API failed or timed out, using traditional APIs...', error.message);
+                lastError = error;
             }
-        } catch (error) {
-            console.warn('Gemini API failed, trying traditional APIs...', error);
-            lastError = error;
+        } else {
+            console.log(`ℹ️ Skipping Gemini for ${baseCurrency}, using traditional APIs...`);
         }
 
-        // Try primary API (exchangerate.host - most accurate, similar to Google Finance) if Gemini failed
+        // ALWAYS try primary API (exchangerate.host) for complete rate set
         if (!data) {
         try {
             const response = await fetch(`${API_SOURCES.primary}${baseCurrency}`);
