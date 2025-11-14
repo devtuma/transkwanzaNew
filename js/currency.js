@@ -9,10 +9,15 @@ const TRANSKWANZA_FEE = 0.03; // 3%
 const CACHE_DURATION = 0; // NO CACHE - always fetch fresh data
 const UPDATE_INTERVAL = 10 * 60 * 1000; // Update every 10 minutes
 
+// Gemini API Configuration for Google Finance data
+const GEMINI_API_KEY = 'AIzaSyDuuvZGKTxxfKSAEI_-QEelp_2aQ9r_55k';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
 // API Configuration - Multiple sources for accuracy
-// Primary: exchangerate.host (updated with ECB, Fed, etc data)
-// Fallback: frankfurter.app (European Central Bank data)
+// Primary: Gemini with Google Search (gets data from Google Finance!)
+// Fallback: exchangerate.host, frankfurter.app, exchangerate-api.com
 const API_SOURCES = {
+    gemini: GEMINI_API_URL,
     primary: 'https://api.exchangerate.host/latest?base=',
     fallback: 'https://api.frankfurter.app/latest?from=',
     legacy: 'https://api.exchangerate-api.com/v4/latest/'
@@ -33,6 +38,76 @@ const FALLBACK_RATES = {
     NAD: 18.10,     // 1 USD = 18.10 NAD Dólar Namibiano
     MZN: 63.90      // 1 USD = 63.90 MZN Metical Moçambicano
 };
+
+// ==================== GEMINI API FUNCTION ====================
+
+async function fetchRateFromGemini(fromCurrency, toCurrency) {
+    try {
+        console.log(`🔮 Asking Gemini AI for ${fromCurrency} to ${toCurrency} rate (via Google Search)...`);
+
+        const prompt = `What is the current exchange rate for 1 ${fromCurrency} to ${toCurrency}? Provide ONLY the numerical value as a decimal number, nothing else. For example: 6.17`;
+
+        const response = await fetch(GEMINI_API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': GEMINI_API_KEY
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                tools: [{
+                    googleSearch: {}  // This enables Google Search grounding!
+                }]
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Gemini API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Extract the rate from Gemini's response
+        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+            const text = data.candidates[0].content.parts[0].text;
+            // Extract number from text (handles formats like "6.17" or "The rate is 6.17")
+            const match = text.match(/\d+\.?\d*/);
+            if (match) {
+                const rate = parseFloat(match[0]);
+                console.log(`✨ Gemini found rate: 1 ${fromCurrency} = ${rate} ${toCurrency} (from Google Finance)`);
+                return rate;
+            }
+        }
+
+        throw new Error('Could not parse rate from Gemini response');
+    } catch (error) {
+        console.warn(`Gemini API failed: ${error.message}`);
+        return null;
+    }
+}
+
+async function fetchAllRatesFromGemini(baseCurrency) {
+    // Get rates for all currencies relative to base currency
+    const currencies = ['USD', 'BRL', 'EUR', 'AOA', 'CUP', 'RUB', 'ZAR', 'NAD', 'MZN'];
+    const rates = {};
+
+    for (const currency of currencies) {
+        if (currency === baseCurrency) {
+            rates[currency] = 1.0;
+        } else {
+            const rate = await fetchRateFromGemini(baseCurrency, currency);
+            if (rate) {
+                rates[currency] = rate;
+            }
+        }
+    }
+
+    return Object.keys(rates).length > 1 ? rates : null;
+}
 
 // ==================== EXCHANGE RATE FUNCTIONS ====================
 
@@ -84,7 +159,22 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
         let data = null;
         let lastError = null;
 
-        // Try primary API (exchangerate.host - most accurate, similar to Google Finance)
+        // TRY GEMINI API FIRST (uses Google Search to get Google Finance data!)
+        try {
+            console.log(`🌟 Trying Gemini API with Google Search grounding...`);
+            const geminiRates = await fetchAllRatesFromGemini(baseCurrency);
+
+            if (geminiRates && Object.keys(geminiRates).length > 1) {
+                data = { rates: geminiRates };
+                console.log(`✨ SUCCESS! Using Gemini API (Google Finance data) for ${baseCurrency}`);
+            }
+        } catch (error) {
+            console.warn('Gemini API failed, trying traditional APIs...', error);
+            lastError = error;
+        }
+
+        // Try primary API (exchangerate.host - most accurate, similar to Google Finance) if Gemini failed
+        if (!data) {
         try {
             const response = await fetch(`${API_SOURCES.primary}${baseCurrency}`);
             if (response.ok) {
