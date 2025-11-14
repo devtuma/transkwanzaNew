@@ -141,10 +141,10 @@ async function initializeCalculator() {
 
     console.log('📊 Dashboard calculator - loading exchange rates (FAST mode)...');
 
-    // Fetch rates for main currencies only (no Gemini = FAST!)
-    await CurrencyUtil.fetchExchangeRates('USD', false, true, false);
-    await CurrencyUtil.fetchExchangeRates('BRL', false, true, false);
-    await CurrencyUtil.fetchExchangeRates('EUR', false, true, false);
+    // Fetch rates for main currencies only
+    await CurrencyUtil.fetchExchangeRates('USD', false, false);
+    await CurrencyUtil.fetchExchangeRates('BRL', false, false);
+    await CurrencyUtil.fetchExchangeRates('EUR', false, false);
 
     console.log('✅ Dashboard rates loaded (others will load on demand)');
 
@@ -180,8 +180,8 @@ async function updateDashboardCalculator() {
     const fromAmount = parseFloat(document.getElementById('calcFromAmount').value) || 0;
 
     // Fetch rates if needed (uses cache if available - fast!)
-    await CurrencyUtil.fetchExchangeRates(fromCurrency, false, false, false);
-    await CurrencyUtil.fetchExchangeRates(toCurrency, false, false, false);
+    await CurrencyUtil.fetchExchangeRates(fromCurrency);
+    await CurrencyUtil.fetchExchangeRates(toCurrency);
 
     const calculation = CurrencyUtil.calculateExchange(fromAmount, fromCurrency, toCurrency);
 

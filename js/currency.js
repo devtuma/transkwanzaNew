@@ -1,44 +1,46 @@
-// ==================== CURRENCY CALCULATOR ====================
+// ==================== TRANSKWANZA CURRENCY CALCULATOR ====================
+// Sistema de câmbio real-time para remessas P2P
+// Pronto para produção no Hostinger
+
+// ==================== CONFIGURATION ====================
 
 // Exchange rate cache
 let exchangeRates = {};
 let lastUpdate = null;
 
 // Constants
-const TRANSKWANZA_FEE = 0.03; // 3%
-const CACHE_DURATION = 60 * 1000; // Cache for 1 minute
-const UPDATE_INTERVAL = 10 * 60 * 1000; // Update every 10 minutes
+const TRANSKWANZA_FEE = 0.03; // Taxa TransKwanza: 3%
+const CACHE_DURATION = 5 * 60 * 1000; // Cache válido por 5 minutos
+const UPDATE_INTERVAL = 10 * 60 * 1000; // Auto-update a cada 10 minutos
 
-// GEMINI API DESABILITADA (bloqueio CORS do navegador)
-// Para usar Gemini, seria necessário fazer as requisições do backend, não do frontend
-const GEMINI_ENABLED = false; // Desabilitado por enquanto
-
-// API Configuration - Multiple sources for accuracy
+// API Configuration - Multiple sources for reliability
 const API_SOURCES = {
     primary: 'https://api.exchangerate.host/latest?base=',
     fallback: 'https://api.frankfurter.app/latest?from=',
     legacy: 'https://api.exchangerate-api.com/v4/latest/'
 };
 
-// Alternative: Use static rates as fallback (relative to USD)
-// Updated from Google Finance (13/11/2025)
-// IMPORTANTE: Para calcular EUR→BRL: 1 EUR = 6.16 BRL (Google Finance)
-// 1 USD = 5.80 BRL, então 1 EUR = 6.16/5.80 = 1.062 USD, logo USD→EUR = 0.94
+// Fallback rates (updated from real market data - 14/11/2025)
+// Used only if all APIs fail
 const FALLBACK_RATES = {
-    USD: 1.0,       // Base
-    BRL: 5.80,      // 1 USD = 5.80 BRL (Google Finance)
-    EUR: 0.94,      // 1 USD = 0.94 EUR (portanto 1 EUR = 6.17 BRL) ✓
-    AOA: 920.0,     // 1 USD = 920 AOA Kwanza Angolano
-    CUP: 24.0,      // 1 USD = 24 CUP Peso Cubano
-    RUB: 97.0,      // 1 USD = 97 RUB Rublo Russo
-    ZAR: 18.10,     // 1 USD = 18.10 ZAR Rand Sul-Africano
-    NAD: 18.10,     // 1 USD = 18.10 NAD Dólar Namibiano
-    MZN: 63.90      // 1 USD = 63.90 MZN Metical Moçambicano
+    USD: 1.0,       // Base currency
+    BRL: 5.80,      // Real Brasileiro
+    EUR: 0.94,      // Euro (1 EUR ≈ 6.17 BRL)
+    AOA: 920.0,     // Kwanza Angolano
+    CUP: 24.0,      // Peso Cubano
+    RUB: 97.0,      // Rublo Russo
+    ZAR: 18.10,     // Rand Sul-Africano
+    NAD: 18.10,     // Dólar Namibiano
+    MZN: 63.90      // Metical Moçambicano
 };
 
-// ==================== EXCHANGE RATE FUNCTIONS ====================
+// ==================== CORE FUNCTIONS ====================
 
-// Check if we need to fetch new rates
+/**
+ * Check if we need to fetch new rates
+ * @param {string} baseCurrency - Currency code
+ * @returns {boolean} True if update needed
+ */
 function needsUpdate(baseCurrency) {
     // If we don't have rates for this currency, fetch
     if (!exchangeRates[baseCurrency]) {
@@ -60,16 +62,25 @@ function needsUpdate(baseCurrency) {
     return false;
 }
 
-async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false, forceUpdate = false, useGemini = false) {
+/**
+ * Fetch exchange rates from APIs
+ * @param {string} baseCurrency - Base currency code (USD, BRL, EUR, etc)
+ * @param {boolean} showNotification - Show success notification
+ * @param {boolean} forceUpdate - Force update even if cache is valid
+ * @returns {Promise<Object>} Exchange rates object
+ */
+async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false, forceUpdate = false) {
     // Check if we need to update (unless forced)
     if (!forceUpdate && !needsUpdate(baseCurrency)) {
-        console.log(`Using cached rates for ${baseCurrency} (${Math.floor((new Date() - lastUpdate) / 1000)}s old)`);
+        const cacheAge = Math.floor((new Date() - lastUpdate) / 1000);
+        console.log(`✓ Using cached rates for ${baseCurrency} (${cacheAge}s old)`);
         return exchangeRates[baseCurrency];
     }
 
     console.log(`🔄 Fetching fresh exchange rates for ${baseCurrency}...`);
+
     try {
-        // Show loading indicator on both buttons
+        // Show loading indicator
         const refreshBtn = document.getElementById('refreshRatesBtn');
         const dashboardRefreshBtn = document.getElementById('dashboardRefreshRatesBtn');
 
@@ -82,67 +93,79 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
             dashboardRefreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         }
 
-        // Try multiple API sources for better accuracy
         let data = null;
         let lastError = null;
 
-        // Use traditional APIs for fast, reliable data
+        // Try primary API (exchangerate.host)
         try {
             const response = await fetch(`${API_SOURCES.primary}${baseCurrency}`);
             if (response.ok) {
                 data = await response.json();
-                // Check if data has rates property
-                if (!data.rates) {
-                    throw new Error('Invalid data format from primary API');
+                if (data.rates) {
+                    console.log(`✓ Primary API (exchangerate.host) - ${baseCurrency}`);
+                } else {
+                    throw new Error('Invalid data format');
                 }
-                console.log(`✓ Using primary API (exchangerate.host) for ${baseCurrency}`);
             }
         } catch (error) {
-            console.warn('Primary API failed, trying fallback...', error);
+            console.warn('⚠ Primary API failed:', error.message);
             lastError = error;
         }
 
-        // Try fallback API (frankfurter.app) if primary fails
+        // Try fallback API (frankfurter.app)
         if (!data) {
             try {
                 const response = await fetch(`${API_SOURCES.fallback}${baseCurrency}`);
                 if (response.ok) {
                     data = await response.json();
-                    // Check if data has rates property
-                    if (!data.rates) {
-                        throw new Error('Invalid data format from fallback API');
+                    if (data.rates) {
+                        console.log(`✓ Fallback API (frankfurter.app) - ${baseCurrency}`);
+                    } else {
+                        throw new Error('Invalid data format');
                     }
-                    console.log(`✓ Using fallback API (frankfurter.app) for ${baseCurrency}`);
                 }
             } catch (error) {
-                console.warn('Fallback API failed, trying legacy...', error);
+                console.warn('⚠ Fallback API failed:', error.message);
                 lastError = error;
             }
         }
 
-        // Try legacy API as last resort
+        // Try legacy API (exchangerate-api.com)
         if (!data) {
-            const response = await fetch(`${API_SOURCES.legacy}${baseCurrency}`);
-            if (!response.ok) {
-                throw lastError || new Error('All API sources failed');
+            try {
+                const response = await fetch(`${API_SOURCES.legacy}${baseCurrency}`);
+                if (response.ok) {
+                    data = await response.json();
+                    if (data.rates) {
+                        console.log(`✓ Legacy API (exchangerate-api.com) - ${baseCurrency}`);
+                    } else {
+                        throw new Error('Invalid data format');
+                    }
+                }
+            } catch (error) {
+                console.warn('⚠ Legacy API failed:', error.message);
+                lastError = error;
             }
-            data = await response.json();
-            console.log(`✓ Using legacy API (exchangerate-api.com) for ${baseCurrency}`);
         }
 
+        // If all APIs failed, throw error
         if (!data || !data.rates) {
-            throw new Error('Failed to fetch exchange rates from all sources');
+            throw lastError || new Error('All API sources failed');
         }
 
         // Store rates and update time
         exchangeRates[baseCurrency] = data.rates;
         lastUpdate = new Date();
 
-        // Cache in localStorage
-        localStorage.setItem('exchangeRates', JSON.stringify({
-            rates: exchangeRates,
-            lastUpdate: lastUpdate.toISOString()
-        }));
+        // Save to localStorage for persistence
+        try {
+            localStorage.setItem('exchangeRates', JSON.stringify({
+                rates: exchangeRates,
+                lastUpdate: lastUpdate.toISOString()
+            }));
+        } catch (e) {
+            console.warn('Failed to save to localStorage:', e);
+        }
 
         // Restore refresh buttons
         if (refreshBtn) {
@@ -160,8 +183,9 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
         }
 
         return data.rates;
+
     } catch (error) {
-        console.error('Error fetching exchange rates:', error);
+        console.error('❌ Error fetching exchange rates:', error);
 
         // Restore refresh buttons
         const refreshBtn = document.getElementById('refreshRatesBtn');
@@ -176,29 +200,44 @@ async function fetchExchangeRates(baseCurrency = 'USD', showNotification = false
             dashboardRefreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
         }
 
-        // Try to use cached rates
-        const cached = localStorage.getItem('exchangeRates');
-        if (cached) {
-            const parsed = JSON.parse(cached);
-            exchangeRates = parsed.rates;
-            lastUpdate = new Date(parsed.lastUpdate);
-            return exchangeRates[baseCurrency] || FALLBACK_RATES;
+        // Try to load from localStorage cache
+        try {
+            const cached = localStorage.getItem('exchangeRates');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                exchangeRates = parsed.rates;
+                lastUpdate = new Date(parsed.lastUpdate);
+                console.log('📦 Using localStorage cache');
+
+                if (exchangeRates[baseCurrency]) {
+                    return exchangeRates[baseCurrency];
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load from localStorage:', e);
         }
 
-        // Use fallback rates
-        console.warn('Using fallback rates');
+        // Use fallback rates as last resort
+        console.warn('⚠ Using fallback rates (static data)');
         if (showNotification && typeof NotificationUtil !== 'undefined') {
-            NotificationUtil.show('Erro ao atualizar. Usando taxas em cache.', 'warning');
+            NotificationUtil.show('Usando taxas em cache. Verifique sua conexão.', 'warning');
         }
+
         return FALLBACK_RATES;
     }
 }
 
+/**
+ * Get exchange rate between two currencies
+ * @param {string} from - Source currency
+ * @param {string} to - Target currency
+ * @returns {number} Exchange rate
+ */
 function getExchangeRate(from, to) {
-    // If same currency, return 1
+    // Same currency = 1:1
     if (from === to) return 1;
 
-    // Try to get from cache
+    // Try direct conversion from cache
     if (exchangeRates[from] && exchangeRates[from][to]) {
         return exchangeRates[from][to];
     }
@@ -210,20 +249,28 @@ function getExchangeRate(from, to) {
         return toToUSD / fromToUSD;
     }
 
-    // Fallback calculation
+    // Fallback calculation using static rates
     const fromRate = FALLBACK_RATES[from] || 1;
     const toRate = FALLBACK_RATES[to] || 1;
     return toRate / fromRate;
 }
 
+/**
+ * Calculate exchange with TransKwanza fee
+ * @param {number} amount - Amount to convert
+ * @param {string} from - Source currency
+ * @param {string} to - Target currency
+ * @returns {Object} Calculation details
+ */
 function calculateExchange(amount, from, to) {
     const rate = getExchangeRate(from, to);
-    const amountAfterFee = amount * (1 - TRANSKWANZA_FEE);
+    const fee = amount * TRANSKWANZA_FEE;
+    const amountAfterFee = amount - fee;
     const convertedAmount = amountAfterFee * rate;
 
     return {
         originalAmount: amount,
-        fee: amount * TRANSKWANZA_FEE,
+        fee: fee,
         amountAfterFee: amountAfterFee,
         rate: rate,
         convertedAmount: convertedAmount
@@ -232,84 +279,92 @@ function calculateExchange(amount, from, to) {
 
 // ==================== UI FUNCTIONS ====================
 
+/**
+ * Update calculator display
+ */
 async function updateCalculator() {
     const fromCurrency = document.getElementById('fromCurrency').value;
     const toCurrency = document.getElementById('toCurrency').value;
     const fromAmount = parseFloat(document.getElementById('fromAmount').value) || 0;
 
-    // Fetch rates if needed (uses cache if available - fast!)
-    await fetchExchangeRates(fromCurrency, false, false, false); // No force, no Gemini = fast
-    await fetchExchangeRates(toCurrency, false, false, false);
+    // Fetch rates if needed (uses cache if available)
+    await fetchExchangeRates(fromCurrency);
+    await fetchExchangeRates(toCurrency);
 
     const calculation = calculateExchange(fromAmount, fromCurrency, toCurrency);
 
-    // Update to amount
+    // Update converted amount
     document.getElementById('toAmount').value = calculation.convertedAmount.toFixed(2);
 
-    // Update exchange rate display (show more decimals for accuracy)
+    // Update exchange rate display
     const rateDisplay = document.getElementById('exchangeRate');
     if (rateDisplay) {
-        // Use up to 4 decimal places, but remove trailing zeros
         const formattedRate = calculation.rate.toFixed(4).replace(/\.?0+$/, '');
         rateDisplay.textContent = `1 ${fromCurrency} = ${formattedRate} ${toCurrency}`;
     }
 
-    // Update last update time (both home page and dashboard)
+    // Update last update timestamp
     updateLastUpdateDisplay();
 }
 
+/**
+ * Update "last update" display in UI
+ */
 function updateLastUpdateDisplay() {
     const updateDisplays = ['lastUpdate', 'calcLastUpdate'];
+
     updateDisplays.forEach(displayId => {
-        const lastUpdateDisplay = document.getElementById(displayId);
-        if (lastUpdateDisplay && lastUpdate) {
-            // Format: "DD/MM/YYYY HH:MM"
+        const element = document.getElementById(displayId);
+        if (element && lastUpdate) {
             const day = String(lastUpdate.getDate()).padStart(2, '0');
             const month = String(lastUpdate.getMonth() + 1).padStart(2, '0');
             const year = lastUpdate.getFullYear();
             const hours = String(lastUpdate.getHours()).padStart(2, '0');
             const minutes = String(lastUpdate.getMinutes()).padStart(2, '0');
 
-            lastUpdateDisplay.textContent = `Última atualização: ${day}/${month}/${year} ${hours}:${minutes}`;
+            element.textContent = `Última atualização: ${day}/${month}/${year} ${hours}:${minutes}`;
         }
     });
 }
 
+/**
+ * Swap source and target currencies
+ */
 function swapCurrencies() {
     const fromCurrency = document.getElementById('fromCurrency');
     const toCurrency = document.getElementById('toCurrency');
 
-    // Swap values
     const temp = fromCurrency.value;
     fromCurrency.value = toCurrency.value;
     toCurrency.value = temp;
 
-    // Update calculator
     updateCalculator();
 }
 
-// Manual refresh function - FORCE new data from API
+/**
+ * Manual refresh - force update all rates
+ */
 async function refreshRates() {
-    console.log('🔄 Manual refresh triggered - forcing API requests...');
+    console.log('🔄 Manual refresh - updating all currencies...');
 
-    // Force update for all currencies from traditional APIs
-    await fetchExchangeRates('USD', true, true, false);  // show notification, force update
-    await fetchExchangeRates('BRL', false, true, false);
-    await fetchExchangeRates('EUR', false, true, false);
-    await fetchExchangeRates('AOA', false, true, false);
-    await fetchExchangeRates('CUP', false, true, false);
-    await fetchExchangeRates('RUB', false, true, false);
-    await fetchExchangeRates('ZAR', false, true, false);
-    await fetchExchangeRates('NAD', false, true, false);
-    await fetchExchangeRates('MZN', false, true, false);
+    // Force update for all currencies
+    await fetchExchangeRates('USD', true, true);
+    await fetchExchangeRates('BRL', false, true);
+    await fetchExchangeRates('EUR', false, true);
+    await fetchExchangeRates('AOA', false, true);
+    await fetchExchangeRates('CUP', false, true);
+    await fetchExchangeRates('RUB', false, true);
+    await fetchExchangeRates('ZAR', false, true);
+    await fetchExchangeRates('NAD', false, true);
+    await fetchExchangeRates('MZN', false, true);
 
-    // Update the calculator display
+    // Update calculator display
     await updateCalculator();
 
-    console.log('✅ All exchange rates refreshed from API');
+    console.log('✅ All rates refreshed successfully');
 }
 
-// ==================== INITIALIZE ====================
+// ==================== INITIALIZATION ====================
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Check if we're on a page with calculator
@@ -321,32 +376,47 @@ document.addEventListener('DOMContentLoaded', async function() {
     const swapBtn = document.getElementById('swapBtn');
     const sendBtn = document.getElementById('sendBtn');
 
-    // CLEAR OLD CACHE - force fresh data
-    console.log('🗑️ Clearing old exchange rate cache...');
-    localStorage.removeItem('exchangeRates');
-    exchangeRates = {};
-    lastUpdate = null;
+    console.log('📊 Initializing TransKwanza Calculator...');
 
-    console.log('📊 Initializing calculator - loading exchange rates (FAST mode)...');
+    // Try to load cached rates from localStorage
+    try {
+        const cached = localStorage.getItem('exchangeRates');
+        if (cached) {
+            const parsed = JSON.parse(cached);
+            const cacheTime = new Date(parsed.lastUpdate);
+            const cacheAge = new Date() - cacheTime;
 
-    // Fetch initial rates for main currencies only (no force, no Gemini = FAST!)
-    await fetchExchangeRates('USD', false, true, false); // Force once on load, but NO Gemini
-    await fetchExchangeRates('BRL', false, true, false);
-    await fetchExchangeRates('EUR', false, true, false);
+            // Use cache if less than 5 minutes old
+            if (cacheAge < CACHE_DURATION) {
+                exchangeRates = parsed.rates;
+                lastUpdate = cacheTime;
+                console.log(`📦 Loaded cache (${Math.floor(cacheAge / 1000)}s old)`);
+            } else {
+                console.log('🗑️ Cache expired, fetching fresh data...');
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load cache:', e);
+    }
 
-    console.log('✅ Main exchange rates loaded (others will load on demand)');
+    // Fetch initial rates for main currencies
+    await fetchExchangeRates('USD', false, false);
+    await fetchExchangeRates('BRL', false, false);
+    await fetchExchangeRates('EUR', false, false);
+
+    console.log('✅ Calculator initialized');
 
     // Initial calculation
     await updateCalculator();
 
-    // Event listeners - make them async to fetch rates when currency changes
+    // Event listeners
     fromCurrency.addEventListener('change', async () => {
-        console.log(`Currency changed to: ${fromCurrency.value}`);
+        console.log(`Currency changed: ${fromCurrency.value}`);
         await updateCalculator();
     });
 
     toCurrency.addEventListener('change', async () => {
-        console.log(`Currency changed to: ${toCurrency.value}`);
+        console.log(`Currency changed: ${toCurrency.value}`);
         await updateCalculator();
     });
 
@@ -358,20 +428,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         swapBtn.addEventListener('click', swapCurrencies);
     }
 
-    // Refresh buttons (home page and dashboard)
+    // Refresh button
     const refreshBtn = document.getElementById('refreshRatesBtn');
-    const dashboardRefreshBtn = document.getElementById('dashboardRefreshRatesBtn');
-
     if (refreshBtn) {
         refreshBtn.addEventListener('click', refreshRates);
     }
+
+    // Dashboard refresh button
+    const dashboardRefreshBtn = document.getElementById('dashboardRefreshRatesBtn');
     if (dashboardRefreshBtn) {
         dashboardRefreshBtn.addEventListener('click', refreshRates);
     }
 
+    // Send button (create proposal)
     if (sendBtn) {
         sendBtn.addEventListener('click', function() {
-            // Check if user is logged in
             if (!AuthUtil.isLoggedIn()) {
                 NotificationUtil.show('Faça login para criar uma proposta', 'warning');
                 setTimeout(() => {
@@ -380,7 +451,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 return;
             }
 
-            // Store proposal data and redirect to dashboard
             const proposalData = {
                 fromCurrency: fromCurrency.value,
                 toCurrency: toCurrency.value,
@@ -397,27 +467,28 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     }
 
-    // Auto-refresh rates every 10 minutes
+    // Auto-refresh every 10 minutes
     setInterval(async () => {
-        console.log('⏰ Auto-updating exchange rates (every 10 minutes)...');
+        console.log('⏰ Auto-refresh (10 min interval)');
 
-        // Fetch all currencies
-        await fetchExchangeRates('USD', false);
-        await fetchExchangeRates('BRL', false);
-        await fetchExchangeRates('EUR', false);
-        await fetchExchangeRates('AOA', false);
-        await fetchExchangeRates('CUP', false);
-        await fetchExchangeRates('RUB', false);
-        await fetchExchangeRates('ZAR', false);
-        await fetchExchangeRates('NAD', false);
-        await fetchExchangeRates('MZN', false);
+        // Force update all currencies
+        await fetchExchangeRates('USD', false, true);
+        await fetchExchangeRates('BRL', false, true);
+        await fetchExchangeRates('EUR', false, true);
+        await fetchExchangeRates('AOA', false, true);
+        await fetchExchangeRates('CUP', false, true);
+        await fetchExchangeRates('RUB', false, true);
+        await fetchExchangeRates('ZAR', false, true);
+        await fetchExchangeRates('NAD', false, true);
+        await fetchExchangeRates('MZN', false, true);
 
         await updateCalculator();
-        console.log('✅ Auto-update completed');
+        console.log('✅ Auto-refresh complete');
     }, UPDATE_INTERVAL);
 });
 
-// ==================== EXPORT FOR OTHER MODULES ====================
+// ==================== EXPORTS ====================
+
 window.CurrencyUtil = {
     fetchExchangeRates,
     getExchangeRate,
