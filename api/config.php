@@ -22,11 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Configurações do Banco de Dados
-// IMPORTANTE: Atualize com suas credenciais da Hostinger
+// Credenciais do MySQL Hostinger
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'transkwanza_db');
-define('DB_USER', 'seu_usuario');
-define('DB_PASS', 'sua_senha');
+define('DB_NAME', 'u442547792_transkwanza');
+define('DB_USER', 'u442547792_admin');
+define('DB_PASS', 'Life0852new2580!');
 define('DB_CHARSET', 'utf8mb4');
 
 // Tentar conectar ao banco de dados
@@ -51,7 +51,7 @@ try {
 }
 
 // Configurações gerais
-define('JWT_SECRET', 'sua_chave_secreta_aqui_mude_isso'); // IMPORTANTE: Mude isso!
+define('JWT_SECRET', 'TKZ_2024_Pr0d_S3cur3_K3y_L1f30852n3w2580_H0st1ng3r'); // Chave JWT secreta
 define('TRANSKWANZA_FEE', 0.03); // 3%
 
 // Funções auxiliares
