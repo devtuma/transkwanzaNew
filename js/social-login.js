@@ -8,7 +8,7 @@ const SocialLogin = {
 
     config: {
         google: {
-            clientId: 'SEU_GOOGLE_CLIENT_ID.apps.googleusercontent.com'
+            clientId: '405120175674-rmd1b1lhmo78d54ogeqthpeeu8dr083t.apps.googleusercontent.com'
         },
         facebook: {
             appId: 'SEU_FACEBOOK_APP_ID'
