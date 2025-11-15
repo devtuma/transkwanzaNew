@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - TransKwanza</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <div class="navbar">
+                <div class="container">
+                    <a href="index.html" class="logo">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>TransKwanza Admin</span>
+                    </a>
+                    <div class="nav-right">
+                        <button class="btn-logout" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i> Sair
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-content">
+            <div class="tabs-nav">
+                <button class="tab-btn active" data-tab="stats"><i class="fas fa-chart-line"></i> Estatísticas</button>
+                <button class="tab-btn" data-tab="kyc"><i class="fas fa-id-card"></i> KYC Pendente</button>
+                <button class="tab-btn" data-tab="transactions"><i class="fas fa-exchange-alt"></i> Transações</button>
+                <button class="tab-btn" data-tab="currencies"><i class="fas fa-coins"></i> Moedas</button>
+                <button class="tab-btn" data-tab="fraud"><i class="fas fa-shield-alt"></i> Fraudes</button>
+            </div>
+
+            <div class="tabs-content">
+                <div class="tab-pane active" id="stats">
+                    <h2>Estatísticas do Sistema</h2>
+                    <div id="statsContainer">Carregando...</div>
+                </div>
+
+                <div class="tab-pane" id="kyc">
+                    <h2>KYC Pendentes de Aprovação</h2>
+                    <div id="kycContainer">Carregando...</div>
+                </div>
+
+                <div class="tab-pane" id="transactions">
+                    <h2>Transações Pendentes</h2>
+                    <div id="transactionsContainer">Carregando...</div>
+                </div>
+
+                <div class="tab-pane" id="currencies">
+                    <h2>Gestão de Moedas</h2>
+                    <div id="currenciesContainer">Carregando...</div>
+                </div>
+
+                <div class="tab-pane" id="fraud">
+                    <h2>Alertas de Fraude</h2>
+                    <div id="fraudContainer">Carregando...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-container"></div>
+
+    <script src="js/theme.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

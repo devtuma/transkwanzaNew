@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificação de Identidade - TransKwanza</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .kyc-container {
+            min-height: 100vh;
+            padding: var(--spacing-xl) var(--spacing-md);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .kyc-card {
+            background: var(--bg-glass);
+            backdrop-filter: var(--glass-blur);
+            border: var(--glass-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            padding: var(--spacing-xl);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .kyc-header {
+            text-align: center;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .kyc-header i {
+            font-size: 3rem;
+            color: var(--accent-primary);
+            margin-bottom: var(--spacing-md);
+        }
+
+        .kyc-header h1 {
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .kyc-header p {
+            color: var(--text-secondary);
+        }
+
+        .kyc-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: var(--border-color);
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-glass);
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--spacing-sm);
+            font-weight: bold;
+        }
+
+        .step.active .step-number {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: var(--success-color);
+            border-color: var(--success-color);
+            color: white;
+        }
+
+        .file-upload {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-xl);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: var(--spacing-sm);
+        }
+
+        .file-upload:hover {
+            border-color: var(--accent-primary);
+            background: rgba(0, 217, 255, 0.05);
+        }
+
+        .file-upload.has-file {
+            border-color: var(--success-color);
+            background: rgba(52, 211, 153, 0.1);
+        }
+
+        .file-upload i {
+            font-size: 2rem;
+            color: var(--text-secondary);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .file-preview {
+            margin-top: var(--spacing-md);
+            display: none;
+        }
+
+        .file-preview img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: var(--radius-md);
+        }
+
+        .file-info {
+            margin-top: var(--spacing-sm);
+            padding: var(--spacing-sm);
+            background: var(--bg-glass);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: var(--radius-md);
+            padding: var(--spacing-md);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .warning-box i {
+            color: #fbbf24;
+        }
+
+        .warning-box ul {
+            margin: var(--spacing-sm) 0 0 var(--spacing-md);
+            list-style: disc;
+        }
+
+        .warning-box li {
+            margin: var(--spacing-xs) 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="kyc-container">
+        <div class="kyc-card">
+            <div class="kyc-header">
+                <i class="fas fa-id-card"></i>
+                <h1>Verificação de Identidade (KYC)</h1>
+                <p>Para sua segurança e dos demais usuários, precisamos validar sua identidade</p>
+            </div>
+
+            <div class="kyc-steps">
+                <div class="step active">
+                    <div class="step-number">1</div>
+                    <small>Documento</small>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <small>Selfie</small>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <small>Análise</small>
+                </div>
+            </div>
+
+            <div class="warning-box">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Importante:</strong>
+                <ul>
+                    <li>Use um documento oficial com foto (RG, CNH, Passaporte)</li>
+                    <li>Foto deve estar nítida e legível</li>
+                    <li>Tire a foto em local bem iluminado</li>
+                    <li>Não use filtros ou edições</li>
+                    <li>Formatos aceitos: JPG, PNG, PDF (máx 5MB)</li>
+                </ul>
+            </div>
+
+            <form id="kycForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="documentType">
+                        <i class="fas fa-file-alt"></i>
+                        Tipo de Documento *
+                    </label>
+                    <select id="documentType" name="document_type" required>
+                        <option value="">Selecione...</option>
+                        <option value="ID">Carteira de Identidade (RG)</option>
+                        <option value="CPF">CPF</option>
+                        <option value="CNH">Carteira de Motorista (CNH)</option>
+                        <option value="PASSPORT">Passaporte</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="documentNumber">
+                        <i class="fas fa-hashtag"></i>
+                        Número do Documento *
+                    </label>
+                    <input
+                        type="text"
+                        id="documentNumber"
+                        name="document_number"
+                        required
+                        placeholder="Ex: 123456789"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-camera"></i>
+                        Foto do Documento (Frente) *
+                    </label>
+                    <div class="file-upload" id="frontUpload" onclick="document.getElementById('documentFront').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Clique para fazer upload</p>
+                        <small>JPG, PNG ou PDF - Máximo 5MB</small>
+                    </div>
+                    <input
+                        type="file"
+                        id="documentFront"
+                        name="document_front"
+                        accept="image/*,application/pdf"
+                        required
+                        style="display: none;"
+                        onchange="handleFileSelect(this, 'front')"
+                    >
+                    <div class="file-preview" id="frontPreview"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-camera"></i>
+                        Foto do Documento (Verso)
+                    </label>
+                    <div class="file-upload" id="backUpload" onclick="document.getElementById('documentBack').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Clique para fazer upload</p>
+                        <small>Opcional - Se seu documento tiver verso</small>
+                    </div>
+                    <input
+                        type="file"
+                        id="documentBack"
+                        name="document_back"
+                        accept="image/*,application/pdf"
+                        style="display: none;"
+                        onchange="handleFileSelect(this, 'back')"
+                    >
+                    <div class="file-preview" id="backPreview"></div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-user-circle"></i>
+                        Selfie segurando o documento *
+                    </label>
+                    <div class="file-upload" id="selfieUpload" onclick="document.getElementById('documentSelfie').click()">
+                        <i class="fas fa-camera-retro"></i>
+                        <p>Tire uma foto sua segurando o documento</p>
+                        <small>Seu rosto e o documento devem estar visíveis</small>
+                    </div>
+                    <input
+                        type="file"
+                        id="documentSelfie"
+                        name="document_selfie"
+                        accept="image/*"
+                        required
+                        style="display: none;"
+                        onchange="handleFileSelect(this, 'selfie')"
+                    >
+                    <div class="file-preview" id="selfiePreview"></div>
+                </div>
+
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    <i class="fas fa-paper-plane"></i>
+                    Enviar Documentos
+                </button>
+
+                <button type="button" class="btn-submit" onclick="window.location.href='dashboard.html'" style="background: var(--bg-glass); color: var(--text-primary); margin-top: var(--spacing-sm);">
+                    <i class="fas fa-arrow-left"></i>
+                    Enviar Depois
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <script src="js/theme.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/kyc.js"></script>
+</body>
+</html>
