@@ -513,7 +513,7 @@ function delete_proposal($id) {
 }
 
 /**
- * Aceitar proposta (criar match)
+ * Aceitar proposta (criar match E transação automaticamente)
  */
 function accept_proposal($id) {
     global $pdo, $current_user;
@@ -528,8 +528,10 @@ function accept_proposal($id) {
 
     // Verificar se proposta existe e está disponível
     $stmt = $pdo->prepare('
-        SELECT * FROM proposals
-        WHERE id = ? AND status = "pending" AND user_email != ?
+        SELECT p.*, u.id as proposer_user_id
+        FROM proposals p
+        INNER JOIN users u ON p.user_email = u.email
+        WHERE p.id = ? AND p.status = "pending" AND p.user_email != ?
     ');
 
     $stmt->execute([$id, $current_user['email']]);
@@ -540,12 +542,23 @@ function accept_proposal($id) {
     }
 
     try {
-        // Buscar user_id
+        // Iniciar transação SQL
+        $pdo->beginTransaction();
+
+        // Buscar user_id do matcher (quem está aceitando)
         $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
         $stmt->execute([$current_user['email']]);
-        $user = $stmt->fetch();
+        $matcher = $stmt->fetch();
 
-        // Atualizar proposta com match
+        if (!$matcher) {
+            $pdo->rollBack();
+            json_response(['error' => 'Usuário não encontrado'], 404);
+        }
+
+        $matcher_id = $matcher['id'];
+        $proposer_id = $proposal['proposer_user_id'];
+
+        // 1. Atualizar proposta com match
         $stmt = $pdo->prepare('
             UPDATE proposals SET
                 status = "matched",
@@ -559,7 +572,7 @@ function accept_proposal($id) {
         ');
 
         $stmt->execute([
-            $user['id'],
+            $matcher_id,
             $current_user['email'],
             trim($data['recipient_name']),
             trim($data['recipient_email']),
@@ -567,18 +580,67 @@ function accept_proposal($id) {
             $id
         ]);
 
-        // Buscar proposta atualizada
+        // 2. Criar transação automaticamente
+        // O proposer envia from_currency, o matcher envia to_currency
+        $sender_id = $proposer_id;
+        $receiver_id = $matcher_id;
+        $sender_amount = $proposal['from_amount'];
+        $receiver_amount = $proposal['to_amount'];
+        $sender_currency = $proposal['from_currency'];
+        $receiver_currency = $proposal['to_currency'];
+
+        $stmt = $pdo->prepare('
+            INSERT INTO transactions (
+                proposal_id,
+                sender_id,
+                receiver_id,
+                sender_amount,
+                receiver_amount,
+                sender_currency,
+                receiver_currency,
+                exchange_rate,
+                status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, "initiated")
+        ');
+
+        $stmt->execute([
+            $id,
+            $sender_id,
+            $receiver_id,
+            $sender_amount,
+            $receiver_amount,
+            $sender_currency,
+            $receiver_currency,
+            $proposal['exchange_rate']
+        ]);
+
+        $transaction_id = $pdo->lastInsertId();
+
+        // 3. Atualizar status da proposta para "in_progress"
+        $stmt = $pdo->prepare('UPDATE proposals SET status = "in_progress" WHERE id = ?');
+        $stmt->execute([$id]);
+
+        // Commit transação SQL
+        $pdo->commit();
+
+        // Buscar proposta e transação atualizadas
         $stmt = $pdo->prepare('SELECT * FROM proposals WHERE id = ?');
         $stmt->execute([$id]);
         $updated_proposal = $stmt->fetch();
 
+        $stmt = $pdo->prepare('SELECT * FROM transactions WHERE id = ?');
+        $stmt->execute([$transaction_id]);
+        $transaction = $stmt->fetch();
+
         json_response([
             'success' => true,
-            'message' => 'Proposta aceita com sucesso',
-            'proposal' => $updated_proposal
+            'message' => 'Proposta aceita e transação iniciada com sucesso',
+            'proposal' => $updated_proposal,
+            'transaction' => $transaction
         ]);
 
     } catch (PDOException $e) {
+        $pdo->rollBack();
         json_response(['error' => 'Erro ao aceitar proposta', 'message' => $e->getMessage()], 500);
     }
 }
