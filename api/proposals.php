@@ -372,10 +372,18 @@ function update_proposal($id) {
     // Atualizar campos permitidos
     $updates = [];
     $params = [];
+    $amount_changed = false;
+    $new_from_amount = null;
 
+    // Se amount mudar, precisamos recalcular TUDO
     if (isset($data['amount'])) {
-        $updates[] = 'amount = ?';
-        $params[] = (float)$data['amount'];
+        $new_from_amount = (float)$data['amount'];
+
+        if ($new_from_amount <= 0) {
+            json_response(['error' => 'Valor deve ser maior que zero'], 400);
+        }
+
+        $amount_changed = true;
     }
 
     if (isset($data['recipient_name'])) {
@@ -384,8 +392,12 @@ function update_proposal($id) {
     }
 
     if (isset($data['recipient_email'])) {
+        $email = trim($data['recipient_email']);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            json_response(['error' => 'E-mail do destinatário inválido'], 400);
+        }
         $updates[] = 'recipient_email = ?';
-        $params[] = trim($data['recipient_email']);
+        $params[] = $email;
     }
 
     if (isset($data['recipient_phone'])) {
@@ -393,11 +405,43 @@ function update_proposal($id) {
         $params[] = trim($data['recipient_phone']);
     }
 
+    // Se valor mudou, recalcular com taxa ATUAL
+    if ($amount_changed) {
+        $rate_data = get_current_exchange_rate($proposal['from_currency'], $proposal['to_currency']);
+
+        if (!$rate_data['success']) {
+            json_response([
+                'error' => 'Taxa de câmbio não disponível para recalcular',
+                'details' => $rate_data['error'] ?? 'Erro desconhecido'
+            ], 503);
+        }
+
+        $exchange_rate = $rate_data['rate'];
+        $to_amount = $new_from_amount * $exchange_rate;
+        $fee_amount = $to_amount * TRANSKWANZA_FEE;
+
+        // Adicionar campos recalculados
+        $updates[] = 'from_amount = ?';
+        $params[] = $new_from_amount;
+
+        $updates[] = 'to_amount = ?';
+        $params[] = $to_amount;
+
+        $updates[] = 'exchange_rate = ?';
+        $params[] = $exchange_rate;
+
+        $updates[] = 'fee_amount = ?';
+        $params[] = $fee_amount;
+    }
+
     if (empty($updates)) {
         json_response(['error' => 'Nenhum campo para atualizar'], 400);
     }
 
     try {
+        // Adicionar updated_at
+        $updates[] = 'updated_at = NOW()';
+
         $sql = 'UPDATE proposals SET ' . implode(', ', $updates) . ' WHERE id = ?';
         $params[] = $id;
 
@@ -409,11 +453,26 @@ function update_proposal($id) {
         $stmt->execute([$id]);
         $updated_proposal = $stmt->fetch();
 
-        json_response([
+        $response = [
             'success' => true,
             'message' => 'Proposta atualizada com sucesso',
             'proposal' => $updated_proposal
-        ]);
+        ];
+
+        // Se recalculou, incluir informações da taxa
+        if ($amount_changed) {
+            $response['rate_recalculated'] = true;
+            $response['rate_info'] = [
+                'exchange_rate' => $exchange_rate,
+                'from_amount' => $new_from_amount,
+                'to_amount' => $to_amount,
+                'fee_amount' => $fee_amount,
+                'cached' => $rate_data['cached'] ?? false,
+                'updated_at' => $rate_data['updated_at'] ?? null
+            ];
+        }
+
+        json_response($response);
 
     } catch (PDOException $e) {
         json_response(['error' => 'Erro ao atualizar proposta', 'message' => $e->getMessage()], 500);

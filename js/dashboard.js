@@ -216,36 +216,157 @@ async function updateDashboardCalculator() {
     }
 }
 
+// ==================== API INTEGRATION ====================
+
+/**
+ * Helper para fazer requisições autenticadas
+ */
+async function apiRequest(url, options = {}) {
+    const token = localStorage.getItem('token');
+
+    const defaultOptions = {
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+        }
+    };
+
+    const mergedOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: {
+            ...defaultOptions.headers,
+            ...(options.headers || {})
+        }
+    };
+
+    try {
+        const response = await fetch(url, mergedOptions);
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Erro na requisição');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Erro na API:', error);
+        throw error;
+    }
+}
+
+/**
+ * Buscar todas as propostas disponíveis (exceto as do usuário)
+ */
+async function fetchAllProposals(filters = {}) {
+    const params = new URLSearchParams();
+
+    if (filters.from_currency) {
+        params.append('from_currency', filters.from_currency);
+    }
+    if (filters.to_currency) {
+        params.append('to_currency', filters.to_currency);
+    }
+
+    const url = `/api/proposals.php${params.toString() ? '?' + params.toString() : ''}`;
+    const data = await apiRequest(url);
+
+    return data.proposals || [];
+}
+
+/**
+ * Buscar propostas do usuário atual
+ */
+async function fetchMyProposals() {
+    const data = await apiRequest('/api/proposals.php?user=me');
+    return data.proposals || [];
+}
+
+/**
+ * Criar nova proposta
+ */
+async function createProposal(proposalData) {
+    const data = await apiRequest('/api/proposals.php', {
+        method: 'POST',
+        body: JSON.stringify(proposalData)
+    });
+
+    return data;
+}
+
+/**
+ * Aceitar proposta (criar match)
+ */
+async function acceptProposal(proposalId, recipientData) {
+    const data = await apiRequest(`/api/proposals.php?id=${proposalId}&action=accept`, {
+        method: 'POST',
+        body: JSON.stringify(recipientData)
+    });
+
+    return data;
+}
+
+/**
+ * Deletar proposta
+ */
+async function deleteProposalAPI(proposalId) {
+    const data = await apiRequest(`/api/proposals.php?id=${proposalId}`, {
+        method: 'DELETE'
+    });
+
+    return data;
+}
+
 // ==================== PROPOSALS ====================
 
-function loadAllProposals() {
-    allProposals = StorageUtil.getProposals().filter(p =>
-        p.status === 'pending' && p.userEmail !== currentUser.email
-    );
-
-    renderProposals(allProposals);
+async function loadAllProposals() {
+    try {
+        // Buscar da API REAL
+        allProposals = await fetchAllProposals();
+        renderProposals(allProposals);
+    } catch (error) {
+        console.error('Erro ao carregar propostas:', error);
+        NotificationUtil.show('Erro ao carregar propostas: ' + error.message, 'error');
+        allProposals = [];
+        renderProposals([]);
+    }
 }
 
-function loadMyProposals() {
-    myProposals = StorageUtil.getUserProposals(currentUser.email);
-    renderMyProposals(myProposals);
+async function loadMyProposals() {
+    try {
+        // Buscar da API REAL
+        myProposals = await fetchMyProposals();
+        renderMyProposals(myProposals);
+    } catch (error) {
+        console.error('Erro ao carregar suas propostas:', error);
+        NotificationUtil.show('Erro ao carregar suas propostas: ' + error.message, 'error');
+        myProposals = [];
+        renderMyProposals([]);
+    }
 }
 
-function applyFilters() {
+async function applyFilters() {
     const fromCurrency = document.getElementById('filterFromCurrency').value;
     const toCurrency = document.getElementById('filterToCurrency').value;
 
-    let filtered = allProposals;
+    try {
+        // Buscar com filtros direto da API (mais eficiente!)
+        const filters = {};
 
-    if (fromCurrency) {
-        filtered = filtered.filter(p => p.fromCurrency === fromCurrency);
+        if (fromCurrency) {
+            filters.from_currency = fromCurrency;
+        }
+
+        if (toCurrency) {
+            filters.to_currency = toCurrency;
+        }
+
+        allProposals = await fetchAllProposals(filters);
+        renderProposals(allProposals);
+    } catch (error) {
+        console.error('Erro ao aplicar filtros:', error);
+        NotificationUtil.show('Erro ao filtrar propostas: ' + error.message, 'error');
     }
-
-    if (toCurrency) {
-        filtered = filtered.filter(p => p.toCurrency === toCurrency);
-    }
-
-    renderProposals(filtered);
 }
 
 function renderProposals(proposals) {
@@ -267,13 +388,13 @@ function renderProposals(proposals) {
             <div class="proposal-header">
                 <div class="proposal-currencies">
                     <div class="currency-badge">
-                        ${FormatUtil.getCountryFlag(proposal.fromCurrency)}
-                        ${proposal.fromCurrency}
+                        ${FormatUtil.getCountryFlag(proposal.from_currency)}
+                        ${proposal.from_currency}
                     </div>
                     <i class="fas fa-arrow-right currency-arrow"></i>
                     <div class="currency-badge">
-                        ${FormatUtil.getCountryFlag(proposal.toCurrency)}
-                        ${proposal.toCurrency}
+                        ${FormatUtil.getCountryFlag(proposal.to_currency)}
+                        ${proposal.to_currency}
                     </div>
                 </div>
                 <span class="proposal-status status-${proposal.status}">
@@ -282,25 +403,25 @@ function renderProposals(proposals) {
             </div>
 
             <div class="proposal-amount">
-                ${FormatUtil.formatCurrency(proposal.amount, proposal.fromCurrency)}
+                ${FormatUtil.formatCurrency(proposal.from_amount || proposal.amount, proposal.from_currency)}
             </div>
 
             <div class="proposal-details">
                 <div class="detail-row">
                     <span>Enviado de:</span>
-                    <strong>${FormatUtil.getCurrencyName(proposal.fromCurrency)}</strong>
+                    <strong>${FormatUtil.getCurrencyName(proposal.from_currency)}</strong>
                 </div>
                 <div class="detail-row">
                     <span>Recebido em:</span>
-                    <strong>${FormatUtil.getCurrencyName(proposal.toCurrency)}</strong>
+                    <strong>${FormatUtil.getCurrencyName(proposal.to_currency)}</strong>
                 </div>
                 <div class="detail-row">
                     <span>Método de pagamento:</span>
-                    <strong>${FormatUtil.getPaymentMethod(proposal.fromCurrency)}</strong>
+                    <strong>${FormatUtil.getPaymentMethod(proposal.from_currency)}</strong>
                 </div>
                 <div class="detail-row">
                     <span>Criado em:</span>
-                    <strong>${FormatUtil.formatDate(proposal.createdAt)}</strong>
+                    <strong>${FormatUtil.formatDate(proposal.created_at || proposal.createdAt)}</strong>
                 </div>
             </div>
 
@@ -333,13 +454,13 @@ function renderMyProposals(proposals) {
             <div class="proposal-header">
                 <div class="proposal-currencies">
                     <div class="currency-badge">
-                        ${FormatUtil.getCountryFlag(proposal.fromCurrency)}
-                        ${proposal.fromCurrency}
+                        ${FormatUtil.getCountryFlag(proposal.from_currency)}
+                        ${proposal.from_currency}
                     </div>
                     <i class="fas fa-arrow-right currency-arrow"></i>
                     <div class="currency-badge">
-                        ${FormatUtil.getCountryFlag(proposal.toCurrency)}
-                        ${proposal.toCurrency}
+                        ${FormatUtil.getCountryFlag(proposal.to_currency)}
+                        ${proposal.to_currency}
                     </div>
                 </div>
                 <span class="proposal-status status-${proposal.status}">
@@ -348,22 +469,32 @@ function renderMyProposals(proposals) {
             </div>
 
             <div class="proposal-amount">
-                ${FormatUtil.formatCurrency(proposal.amount, proposal.fromCurrency)}
+                ${FormatUtil.formatCurrency(proposal.from_amount || proposal.amount, proposal.from_currency)}
             </div>
 
             <div class="proposal-details">
                 <div class="detail-row">
                     <span>Destinatário:</span>
-                    <strong>${proposal.recipientName}</strong>
+                    <strong>${proposal.recipient_name || proposal.recipientName}</strong>
                 </div>
                 <div class="detail-row">
                     <span>Telefone:</span>
-                    <strong>${proposal.recipientPhone}</strong>
+                    <strong>${proposal.recipient_phone || proposal.recipientPhone}</strong>
                 </div>
                 <div class="detail-row">
                     <span>Criado em:</span>
-                    <strong>${FormatUtil.formatDate(proposal.createdAt)}</strong>
+                    <strong>${FormatUtil.formatDate(proposal.created_at || proposal.createdAt)}</strong>
                 </div>
+                ${proposal.exchange_rate ? `
+                    <div class="detail-row">
+                        <span>Taxa de câmbio:</span>
+                        <strong>1 ${proposal.from_currency} = ${parseFloat(proposal.exchange_rate).toFixed(6)} ${proposal.to_currency}</strong>
+                    </div>
+                    <div class="detail-row">
+                        <span>Valor a receber:</span>
+                        <strong>${FormatUtil.formatCurrency(proposal.to_amount, proposal.to_currency)}</strong>
+                    </div>
+                ` : ''}
             </div>
 
             <div class="proposal-actions">
@@ -437,7 +568,7 @@ async function openNewProposalModal() {
     modal.classList.add('active');
 }
 
-function handleNewProposal(e) {
+async function handleNewProposal(e) {
     e.preventDefault();
 
     const fromCurrency = document.getElementById('calcFromCurrency').value;
@@ -447,34 +578,57 @@ function handleNewProposal(e) {
     const recipientEmail = document.getElementById('recipientEmail').value.trim();
     const recipientPhone = document.getElementById('recipientPhone').value.trim();
 
-    // Create proposal
-    const proposal = {
-        userEmail: currentUser.email,
-        fromCurrency,
-        toCurrency,
-        amount,
-        recipientName,
-        recipientEmail,
-        recipientPhone
-    };
+    // Validações
+    if (!amount || amount <= 0) {
+        NotificationUtil.show('Valor inválido', 'error');
+        return;
+    }
 
-    StorageUtil.addProposal(proposal);
+    if (!recipientName || !recipientEmail || !recipientPhone) {
+        NotificationUtil.show('Preencha todos os campos', 'error');
+        return;
+    }
 
-    // Close modal
-    document.getElementById('newProposalModal').classList.remove('active');
+    try {
+        // Criar proposta via API REAL
+        const proposalData = {
+            from_currency: fromCurrency,
+            to_currency: toCurrency,
+            amount: amount,
+            recipient_name: recipientName,
+            recipient_email: recipientEmail,
+            recipient_phone: recipientPhone
+        };
 
-    // Show success message
-    NotificationUtil.show('Proposta criada com sucesso!', 'success');
+        const response = await createProposal(proposalData);
 
-    // Switch to my proposals tab
-    switchTab('minhas-propostas');
+        // Close modal
+        document.getElementById('newProposalModal').classList.remove('active');
+
+        // Show success message com informações da taxa
+        let message = 'Proposta criada com sucesso!';
+        if (response.rate_info) {
+            message += `<br><small>Taxa: ${response.rate_info.exchange_rate.toFixed(6)} | Você receberá: ${FormatUtil.formatCurrency(response.rate_info.to_amount, toCurrency)}</small>`;
+        }
+        NotificationUtil.show(message, 'success');
+
+        // Reload my proposals
+        await loadMyProposals();
+
+        // Switch to my proposals tab
+        switchTab('minhas-propostas');
+
+    } catch (error) {
+        console.error('Erro ao criar proposta:', error);
+        NotificationUtil.show('Erro ao criar proposta: ' + error.message, 'error');
+    }
 }
 
 // ==================== ACCEPT PROPOSAL MODAL ====================
 
 function openAcceptProposalModal(proposalId) {
     const modal = document.getElementById('acceptProposalModal');
-    const proposal = StorageUtil.getProposals().find(p => p.id === proposalId);
+    const proposal = allProposals.find(p => p.id == proposalId);
 
     if (!proposal) {
         NotificationUtil.show('Proposta não encontrada', 'error');
@@ -482,8 +636,8 @@ function openAcceptProposalModal(proposalId) {
     }
 
     // Update modal fields
-    document.getElementById('acceptFromCurrency').textContent = `${FormatUtil.getCountryFlag(proposal.fromCurrency)} ${proposal.fromCurrency}`;
-    document.getElementById('acceptFromAmount').textContent = FormatUtil.formatCurrency(proposal.amount, proposal.fromCurrency);
+    document.getElementById('acceptFromCurrency').textContent = `${FormatUtil.getCountryFlag(proposal.from_currency)} ${proposal.from_currency}`;
+    document.getElementById('acceptFromAmount').textContent = FormatUtil.formatCurrency(proposal.from_amount || proposal.amount, proposal.from_currency);
     document.getElementById('acceptProposalId').value = proposalId;
 
     // Clear form
@@ -493,7 +647,7 @@ function openAcceptProposalModal(proposalId) {
     modal.classList.add('active');
 }
 
-function handleAcceptProposal(e) {
+async function handleAcceptProposal(e) {
     e.preventDefault();
 
     const proposalId = document.getElementById('acceptProposalId').value;
@@ -501,40 +655,56 @@ function handleAcceptProposal(e) {
     const recipientEmail = document.getElementById('acceptRecipientEmail').value.trim();
     const recipientPhone = document.getElementById('acceptRecipientPhone').value.trim();
 
-    // Update proposal
-    StorageUtil.updateProposal(proposalId, {
-        status: 'matched',
-        matchedWith: currentUser.email,
-        matchRecipientName: recipientName,
-        matchRecipientEmail: recipientEmail,
-        matchRecipientPhone: recipientPhone,
-        matchedAt: new Date().toISOString()
-    });
+    // Validações
+    if (!recipientName || !recipientEmail || !recipientPhone) {
+        NotificationUtil.show('Preencha todos os campos', 'error');
+        return;
+    }
 
-    // Close modal
-    document.getElementById('acceptProposalModal').classList.remove('active');
+    try {
+        // Aceitar proposta via API REAL
+        const recipientData = {
+            recipient_name: recipientName,
+            recipient_email: recipientEmail,
+            recipient_phone: recipientPhone
+        };
 
-    // Show success message
-    NotificationUtil.show('Proposta aceita! Aguarde instruções de pagamento.', 'success');
+        await acceptProposal(proposalId, recipientData);
 
-    // Reload proposals
-    loadAllProposals();
+        // Close modal
+        document.getElementById('acceptProposalModal').classList.remove('active');
+
+        // Show success message
+        NotificationUtil.show('Proposta aceita! Aguarde instruções de pagamento.', 'success');
+
+        // Reload proposals
+        await loadAllProposals();
+
+    } catch (error) {
+        console.error('Erro ao aceitar proposta:', error);
+        NotificationUtil.show('Erro ao aceitar proposta: ' + error.message, 'error');
+    }
 }
 
 // ==================== PROPOSAL ACTIONS ====================
 
-function deleteProposal(proposalId) {
+async function deleteProposal(proposalId) {
     if (!confirm('Deseja realmente excluir esta proposta?')) {
         return;
     }
 
-    StorageUtil.deleteProposal(proposalId);
-    NotificationUtil.show('Proposta excluída', 'success');
-    loadMyProposals();
+    try {
+        await deleteProposalAPI(proposalId);
+        NotificationUtil.show('Proposta excluída', 'success');
+        await loadMyProposals();
+    } catch (error) {
+        console.error('Erro ao excluir proposta:', error);
+        NotificationUtil.show('Erro ao excluir proposta: ' + error.message, 'error');
+    }
 }
 
 function viewProposal(proposalId) {
-    const proposal = StorageUtil.getProposals().find(p => p.id === proposalId);
+    const proposal = myProposals.find(p => p.id == proposalId);
 
     if (!proposal) {
         NotificationUtil.show('Proposta não encontrada', 'error');
@@ -542,16 +712,24 @@ function viewProposal(proposalId) {
     }
 
     let message = `
-        <strong>Proposta #${proposal.id.substring(0, 8)}</strong><br><br>
-        <strong>De:</strong> ${FormatUtil.getCountryFlag(proposal.fromCurrency)} ${proposal.fromCurrency} ${FormatUtil.formatCurrency(proposal.amount, proposal.fromCurrency)}<br>
-        <strong>Para:</strong> ${FormatUtil.getCountryFlag(proposal.toCurrency)} ${proposal.toCurrency}<br>
+        <strong>Proposta #${proposal.id}</strong><br><br>
+        <strong>De:</strong> ${FormatUtil.getCountryFlag(proposal.from_currency)} ${proposal.from_currency} ${FormatUtil.formatCurrency(proposal.from_amount || proposal.amount, proposal.from_currency)}<br>
+        <strong>Para:</strong> ${FormatUtil.getCountryFlag(proposal.to_currency)} ${proposal.to_currency}<br>
         <strong>Status:</strong> ${getStatusLabel(proposal.status)}<br>
-        <strong>Destinatário:</strong> ${proposal.recipientName}<br>
-        <strong>Criado em:</strong> ${FormatUtil.formatDate(proposal.createdAt)}
+        <strong>Destinatário:</strong> ${proposal.recipient_name || proposal.recipientName}<br>
+        <strong>Criado em:</strong> ${FormatUtil.formatDate(proposal.created_at || proposal.createdAt)}
     `;
+
+    if (proposal.exchange_rate) {
+        message += `<br><strong>Taxa:</strong> 1 ${proposal.from_currency} = ${parseFloat(proposal.exchange_rate).toFixed(6)} ${proposal.to_currency}`;
+        message += `<br><strong>Valor a receber:</strong> ${FormatUtil.formatCurrency(proposal.to_amount, proposal.to_currency)}`;
+    }
 
     if (proposal.status === 'matched') {
         message += `<br><br><strong>🎉 Proposta conectada!</strong><br>Aguarde instruções de pagamento.`;
+        if (proposal.matched_with_email) {
+            message += `<br><small>Conectado com: ${proposal.matched_with_email}</small>`;
+        }
     }
 
     NotificationUtil.show(message, 'info');
