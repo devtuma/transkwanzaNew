@@ -118,6 +118,13 @@ function login() {
     $email = trim(strtolower($data['email']));
     $password = $data['password'];
 
+    // SEGURANÇA: Rate limiting por IP (máximo 5 tentativas de login por minuto)
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    enforce_rate_limit('login_' . $ip, 5, 60);
+
+    // SEGURANÇA: Rate limiting por email (máximo 3 tentativas por 5 minutos)
+    enforce_rate_limit('login_email_' . $email, 3, 300);
+
     // Buscar usuário
     $stmt = $pdo->prepare('
         SELECT id, name, email, password, country, phone, verified
@@ -129,13 +136,20 @@ function login() {
     $user = $stmt->fetch();
 
     if (!$user) {
+        // SEGURANÇA: Log de tentativa de login com email inexistente
+        security_log('login_failed_user_not_found', ['email' => $email]);
         json_response(['error' => 'Usuário não encontrado'], 404);
     }
 
     // Verificar senha
     if (!password_verify($password, $user['password'])) {
+        // SEGURANÇA: Log de tentativa de login com senha incorreta
+        security_log('login_failed_wrong_password', ['email' => $email], $user['id']);
         json_response(['error' => 'Senha incorreta'], 401);
     }
+
+    // SEGURANÇA: Log de login bem-sucedido
+    security_log('login_success', ['email' => $email], $user['id']);
 
     // Gerar token
     $token = generate_token($user['id'], $user['email']);
