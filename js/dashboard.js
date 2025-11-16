@@ -39,8 +39,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     const newProposalModal = document.getElementById('newProposalModal');
     const acceptProposalModal = document.getElementById('acceptProposalModal');
 
-    document.getElementById('createProposalBtn').addEventListener('click', function() {
-        openNewProposalModal();
+    document.getElementById('createProposalBtn').addEventListener('click', async function() {
+        await openNewProposalModal();
     });
 
     document.getElementById('closeModal').addEventListener('click', function() {
@@ -94,8 +94,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         updateDashboardCalculator();
 
         // Show modal
-        setTimeout(() => {
-            openNewProposalModal();
+        setTimeout(async () => {
+            await openNewProposalModal();
         }, 500);
     }
 });
@@ -139,14 +139,14 @@ async function initializeCalculator() {
     const calcFromAmount = document.getElementById('calcFromAmount');
     const calcSwapBtn = document.getElementById('calcSwapBtn');
 
-    console.log('📊 Dashboard calculator - loading exchange rates (FAST mode)...');
+    console.log('💱 Dashboard calculator - usando sistema profissional de câmbio...');
 
-    // Fetch rates for main currencies only
-    await CurrencyUtil.fetchExchangeRates('USD', false, false);
-    await CurrencyUtil.fetchExchangeRates('BRL', false, false);
-    await CurrencyUtil.fetchExchangeRates('EUR', false, false);
+    // Pré-carregar taxas principais (com cache inteligente)
+    await CurrencySystem.getExchangeRate('USD', 'BRL');
+    await CurrencySystem.getExchangeRate('USD', 'EUR');
+    await CurrencySystem.getExchangeRate('BRL', 'USD');
 
-    console.log('✅ Dashboard rates loaded (others will load on demand)');
+    console.log('✅ Taxas REAIS carregadas (cache inteligente ativo)');
 
     // Initial calculation
     updateDashboardCalculator();
@@ -179,23 +179,41 @@ async function updateDashboardCalculator() {
     const toCurrency = document.getElementById('calcToCurrency').value;
     const fromAmount = parseFloat(document.getElementById('calcFromAmount').value) || 0;
 
-    // Fetch rates if needed (uses cache if available - fast!)
-    await CurrencyUtil.fetchExchangeRates(fromCurrency);
-    await CurrencyUtil.fetchExchangeRates(toCurrency);
-
-    const calculation = CurrencyUtil.calculateExchange(fromAmount, fromCurrency, toCurrency);
-
-    document.getElementById('calcToAmount').value = calculation.convertedAmount.toFixed(2);
-
-    const rateDisplay = document.getElementById('calcExchangeRate');
-    if (rateDisplay) {
-        // Use up to 4 decimal places, but remove trailing zeros
-        const formattedRate = calculation.rate.toFixed(4).replace(/\.?0+$/, '');
-        rateDisplay.textContent = `1 ${fromCurrency} = ${formattedRate} ${toCurrency}`;
+    if (!fromAmount || fromAmount <= 0) {
+        document.getElementById('calcToAmount').value = '0.00';
+        return;
     }
 
-    // Update last update display (using the exported function from currency.js)
-    CurrencyUtil.updateLastUpdateDisplay();
+    try {
+        // Usar sistema profissional de câmbio (taxas REAIS!)
+        const calculation = await CurrencySystem.calculateWithFee(fromAmount, fromCurrency, toCurrency);
+
+        if (calculation.success) {
+            // Mostrar valor FINAL (já com taxa de 3% deduzida)
+            document.getElementById('calcToAmount').value = calculation.finalAmount;
+
+            const rateDisplay = document.getElementById('calcExchangeRate');
+            if (rateDisplay) {
+                const formattedRate = calculation.rate.toFixed(6).replace(/\.?0+$/, '');
+                const cacheStatus = calculation.cached ? '(cache)' : '(tempo real)';
+                rateDisplay.innerHTML = `
+                    <strong>Taxa:</strong> 1 ${fromCurrency} = ${formattedRate} ${toCurrency} ${cacheStatus}<br>
+                    <small>Taxa TransKwanza: ${calculation.feePercentage}% = ${CurrencySystem.formatCurrency(calculation.feeAmount, toCurrency)}</small><br>
+                    <small>Atualizado: ${calculation.updated_at || 'agora'}</small>
+                `;
+            }
+        } else {
+            // Erro ao buscar taxa
+            document.getElementById('calcToAmount').value = '0.00';
+            const rateDisplay = document.getElementById('calcExchangeRate');
+            if (rateDisplay) {
+                rateDisplay.innerHTML = `<span style="color:red">❌ ${calculation.error}</span>`;
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao calcular:', error);
+        document.getElementById('calcToAmount').value = '0.00';
+    }
 }
 
 // ==================== PROPOSALS ====================
@@ -377,20 +395,40 @@ function getStatusLabel(status) {
 
 // ==================== NEW PROPOSAL MODAL ====================
 
-function openNewProposalModal() {
+async function openNewProposalModal() {
     const modal = document.getElementById('newProposalModal');
     const fromCurrency = document.getElementById('calcFromCurrency').value;
     const toCurrency = document.getElementById('calcToCurrency').value;
     const fromAmount = parseFloat(document.getElementById('calcFromAmount').value);
 
-    const calculation = CurrencyUtil.calculateExchange(fromAmount, fromCurrency, toCurrency);
+    if (!fromAmount || fromAmount <= 0) {
+        NotificationUtil.show('Digite um valor válido', 'error');
+        return;
+    }
+
+    // Usar sistema profissional com taxas REAIS
+    const calculation = await CurrencySystem.calculateWithFee(fromAmount, fromCurrency, toCurrency);
+
+    if (!calculation.success) {
+        NotificationUtil.show('Erro ao obter taxa de câmbio: ' + calculation.error, 'error');
+        return;
+    }
 
     // Update modal fields
     document.getElementById('modalFromCurrency').textContent = `${FormatUtil.getCountryFlag(fromCurrency)} ${fromCurrency}`;
-    document.getElementById('modalFromAmount').textContent = FormatUtil.formatCurrency(fromAmount, fromCurrency);
+    document.getElementById('modalFromAmount').textContent = CurrencySystem.formatCurrency(fromAmount, fromCurrency);
     document.getElementById('modalToCurrency').textContent = `${FormatUtil.getCountryFlag(toCurrency)} ${toCurrency}`;
-    document.getElementById('modalToAmount').textContent = FormatUtil.formatCurrency(calculation.convertedAmount, toCurrency);
+    document.getElementById('modalToAmount').textContent = CurrencySystem.formatCurrency(calculation.finalAmount, toCurrency);
     document.getElementById('modalPaymentMethod').textContent = FormatUtil.getPaymentMethod(toCurrency);
+
+    // Mostrar taxa e detalhes
+    const modalRate = document.getElementById('modalRate');
+    if (modalRate) {
+        modalRate.innerHTML = `
+            Taxa: 1 ${fromCurrency} = ${calculation.rate.toFixed(6)} ${toCurrency}<br>
+            <small>Taxa TransKwanza (${calculation.feePercentage}%): ${CurrencySystem.formatCurrency(calculation.feeAmount, toCurrency)}</small>
+        `;
+    }
 
     // Clear form
     document.getElementById('newProposalForm').reset();

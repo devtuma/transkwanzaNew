@@ -159,7 +159,7 @@ function create_proposal() {
 
     $from_currency = strtoupper($data['from_currency']);
     $to_currency = strtoupper($data['to_currency']);
-    $amount = (float)$data['amount'];
+    $from_amount = (float)$data['amount'];
     $recipient_name = trim($data['recipient_name']);
     $recipient_email = trim($data['recipient_email']);
     $recipient_phone = trim($data['recipient_phone']);
@@ -169,7 +169,7 @@ function create_proposal() {
         json_response(['error' => 'Moedas de origem e destino devem ser diferentes'], 400);
     }
 
-    if ($amount <= 0) {
+    if ($from_amount <= 0) {
         json_response(['error' => 'Valor deve ser maior que zero'], 400);
     }
 
@@ -178,23 +178,40 @@ function create_proposal() {
     }
 
     try {
+        // BUSCAR TAXA DE CÂMBIO REAL (sistema dinâmico)
+        $rate_data = get_current_exchange_rate($from_currency, $to_currency);
+
+        if (!$rate_data['success']) {
+            json_response([
+                'error' => 'Taxa de câmbio não disponível',
+                'details' => $rate_data['error'] ?? 'Erro desconhecido'
+            ], 503);
+        }
+
+        $exchange_rate = $rate_data['rate'];
+        $to_amount = $from_amount * $exchange_rate;
+        $fee_amount = $to_amount * TRANSKWANZA_FEE; // 3%
+
         // Buscar user_id
         $stmt = $pdo->prepare('SELECT id FROM users WHERE email = ?');
         $stmt->execute([$current_user['email']]);
         $user = $stmt->fetch();
 
-        // Criar proposta
+        // Criar proposta COM TAXA REAL
         $stmt = $pdo->prepare('
             INSERT INTO proposals (
                 user_id,
                 user_email,
                 from_currency,
                 to_currency,
-                amount,
+                from_amount,
+                to_amount,
+                exchange_rate,
+                fee_amount,
                 recipient_name,
                 recipient_email,
                 recipient_phone
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ');
 
         $stmt->execute([
@@ -202,7 +219,10 @@ function create_proposal() {
             $current_user['email'],
             $from_currency,
             $to_currency,
-            $amount,
+            $from_amount,
+            $to_amount,
+            $exchange_rate,
+            $fee_amount,
             $recipient_name,
             $recipient_email,
             $recipient_phone
@@ -217,13 +237,115 @@ function create_proposal() {
 
         json_response([
             'success' => true,
-            'message' => 'Proposta criada com sucesso',
-            'proposal' => $proposal
+            'message' => 'Proposta criada com sucesso com taxa REAL',
+            'proposal' => $proposal,
+            'rate_info' => [
+                'exchange_rate' => $exchange_rate,
+                'from_amount' => $from_amount,
+                'to_amount' => $to_amount,
+                'fee_amount' => $fee_amount,
+                'cached' => $rate_data['cached'] ?? false,
+                'updated_at' => $rate_data['updated_at'] ?? null
+            ]
         ], 201);
 
     } catch (PDOException $e) {
         json_response(['error' => 'Erro ao criar proposta', 'message' => $e->getMessage()], 500);
     }
+}
+
+/**
+ * Obtém taxa de câmbio atual do sistema dinâmico
+ * Chama o exchange_rates.php internamente
+ */
+function get_current_exchange_rate($from, $to) {
+    global $pdo;
+
+    // Tentar buscar do cache (última hora)
+    $stmt = $pdo->prepare("
+        SELECT rate, updated_at, source
+        FROM exchange_rates_cache
+        WHERE base_currency = ? AND target_currency = ?
+    ");
+    $stmt->execute([$from, $to]);
+    $cached = $stmt->fetch();
+
+    if ($cached) {
+        $cache_age = time() - strtotime($cached['updated_at']);
+        // Cache válido por 1 hora
+        if ($cache_age < 3600) {
+            return [
+                'success' => true,
+                'rate' => (float)$cached['rate'],
+                'cached' => true,
+                'updated_at' => $cached['updated_at'],
+                'source' => $cached['source']
+            ];
+        }
+    }
+
+    // Cache expirado ou não existe - buscar da API externa
+    $url = 'https://open.er-api.com/v6/latest/' . urlencode($from);
+
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($http_code === 200 && $response) {
+        $data = json_decode($response, true);
+
+        if (isset($data['rates'][$to])) {
+            $rate = (float)$data['rates'][$to];
+
+            // Salvar no banco
+            try {
+                // Histórico
+                $stmt = $pdo->prepare("
+                    INSERT INTO exchange_rates
+                    (base_currency, target_currency, rate, source, fetched_at)
+                    VALUES (?, ?, ?, 'exchangerate-api', NOW())
+                ");
+                $stmt->execute([$from, $to, $rate]);
+
+                // Trigger atualiza cache automaticamente
+            } catch (PDOException $e) {
+                // Se falhar ao salvar, continua (taxa ainda é válida)
+                error_log("Erro ao salvar taxa: " . $e->getMessage());
+            }
+
+            return [
+                'success' => true,
+                'rate' => $rate,
+                'cached' => false,
+                'updated_at' => date('Y-m-d H:i:s'),
+                'source' => 'exchangerate-api'
+            ];
+        }
+    }
+
+    // API falhou - usar última taxa conhecida (fallback)
+    if ($cached) {
+        return [
+            'success' => true,
+            'rate' => (float)$cached['rate'],
+            'cached' => true,
+            'fallback' => true,
+            'updated_at' => $cached['updated_at'],
+            'warning' => 'API externa indisponível. Usando última taxa conhecida.'
+        ];
+    }
+
+    // Nenhuma taxa disponível
+    return [
+        'success' => false,
+        'error' => 'Taxa de câmbio não disponível'
+    ];
 }
 
 /**
